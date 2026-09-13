@@ -1,9 +1,11 @@
 package pl.kurdeslawo.casinocore.roulette;
 
 public enum RouletteBetType {
-    STRAIGHT,
+    EXACT_NUMBER,
     RED,
     BLACK,
     EVEN,
-    ODD
+    ODD,
+    LOW,
+    HIGH
 }

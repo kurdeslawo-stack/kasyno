@@ -1,0 +1,96 @@
+package pl.kurdeslawo.casinocore.roulette;
+
+import java.util.Objects;
+import java.util.UUID;
+
+public final class RouletteSession {
+    private final UUID playerId;
+    private long selectedStake;
+    private RouletteBet selectedBet;
+    private RouletteResult result;
+    private RoulettePhase phase = RoulettePhase.SELECTING;
+    private boolean stakeWithdrawn;
+    private boolean settlementInProgress;
+    private boolean settled;
+    private long expectedPayout;
+    private long payout;
+
+    public RouletteSession(UUID playerId, long selectedStake) {
+        this.playerId = Objects.requireNonNull(playerId, "playerId");
+        selectStake(selectedStake);
+    }
+
+    public synchronized void selectStake(long stake) {
+        requirePhase(RoulettePhase.SELECTING);
+        if (stake <= 0) {
+            throw new IllegalArgumentException("Stake must be positive");
+        }
+        selectedStake = stake;
+    }
+
+    public synchronized void beginSpin(RouletteBet bet, RouletteResult drawnResult, long expectedPayout) {
+        requirePhase(RoulettePhase.SELECTING);
+        if (!bet.playerId().equals(playerId) || bet.stake() != selectedStake) {
+            throw new IllegalArgumentException("Bet does not match this session");
+        }
+        selectedBet = Objects.requireNonNull(bet, "bet");
+        result = Objects.requireNonNull(drawnResult, "drawnResult");
+        if (expectedPayout < 0) {
+            throw new IllegalArgumentException("Expected payout cannot be negative");
+        }
+        this.expectedPayout = expectedPayout;
+        stakeWithdrawn = true;
+        phase = RoulettePhase.SPINNING;
+    }
+
+    public synchronized boolean claimSettlement() {
+        if (!stakeWithdrawn || settled || settlementInProgress) {
+            return false;
+        }
+        settlementInProgress = true;
+        return true;
+    }
+
+    public synchronized void completeSettlement(long payout) {
+        if (!settlementInProgress) {
+            throw new IllegalStateException("Settlement was not claimed");
+        }
+        this.payout = payout;
+        settlementInProgress = false;
+        settled = true;
+        phase = RoulettePhase.RESULT;
+    }
+
+    public synchronized void failSettlement() {
+        settlementInProgress = false;
+    }
+
+    public synchronized void resetForNextRound() {
+        if (phase != RoulettePhase.RESULT || !settled) {
+            throw new IllegalStateException("The current round is not settled");
+        }
+        selectedBet = null;
+        result = null;
+        stakeWithdrawn = false;
+        settled = false;
+        expectedPayout = 0L;
+        payout = 0L;
+        phase = RoulettePhase.SELECTING;
+    }
+
+    private void requirePhase(RoulettePhase required) {
+        if (phase != required) {
+            throw new IllegalStateException("Session is in phase " + phase);
+        }
+    }
+
+    public UUID playerId() { return playerId; }
+    public synchronized long selectedStake() { return selectedStake; }
+    public synchronized RouletteBet selectedBet() { return selectedBet; }
+    public synchronized RouletteResult result() { return result; }
+    public synchronized RoulettePhase phase() { return phase; }
+    public synchronized boolean stakeWithdrawn() { return stakeWithdrawn; }
+    public synchronized boolean settled() { return settled; }
+    public synchronized long expectedPayout() { return expectedPayout; }
+    public synchronized long payout() { return payout; }
+}

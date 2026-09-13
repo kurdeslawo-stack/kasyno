@@ -1,5 +1,7 @@
 package pl.kurdeslawo.casinocore.roulette;
 
+import pl.kurdeslawo.casinocore.economy.EconomyProvider;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -8,37 +10,138 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class RouletteManager {
-    private final Map<UUID, RouletteTable> tables = new ConcurrentHashMap<>();
-    private List<Long> allowedStakes;
+    private final EconomyProvider economy;
+    private final RouletteRandom random;
+    private final Map<UUID, RouletteSession> sessions = new ConcurrentHashMap<>();
+    private volatile List<Long> allowedStakes;
+    private volatile RouletteEngine engine;
 
-    public RouletteManager(List<Long> allowedStakes) {
-        setAllowedStakes(allowedStakes);
+    public RouletteManager(EconomyProvider economy, RouletteRandom random, List<Long> allowedStakes,
+                           int outsideMultiplier, int exactMultiplier) {
+        this.economy = economy;
+        this.random = random;
+        updateConfiguration(allowedStakes, outsideMultiplier, exactMultiplier);
+    }
+
+    public RouletteSession openSession(UUID playerId) {
+        return sessions.computeIfAbsent(playerId, id -> new RouletteSession(id, allowedStakes.getFirst()));
+    }
+
+    public Optional<RouletteSession> session(UUID playerId) {
+        return Optional.ofNullable(sessions.get(playerId));
+    }
+
+    public StartRoundOutcome startRound(UUID playerId, RouletteBetType type, Integer selectedNumber) {
+        RouletteSession session = openSession(playerId);
+        synchronized (session) {
+            if (session.phase() != RoulettePhase.SELECTING) {
+                return StartRoundOutcome.failure(session, "A round is already active.");
+            }
+            long stake = session.selectedStake();
+            if (!allowedStakes.contains(stake)) {
+                return StartRoundOutcome.failure(session, "The selected stake is no longer available.");
+            }
+            RouletteBet bet = new RouletteBet(playerId, type, stake, selectedNumber);
+            if (!economy.has(playerId, stake) || !economy.withdraw(playerId, stake)) {
+                return StartRoundOutcome.failure(session, "You do not have enough coins.");
+            }
+
+            RouletteResult result = random.nextResult();
+            long totalReturn = engine.totalReturn(bet, result);
+            session.beginSpin(bet, result, totalReturn);
+            return StartRoundOutcome.success(session);
+        }
+    }
+
+    public boolean settle(UUID playerId) {
+        RouletteSession session = sessions.get(playerId);
+        if (session == null || !session.claimSettlement()) {
+            return false;
+        }
+        try {
+            long payout = session.expectedPayout();
+            if (payout > 0) {
+                economy.deposit(playerId, payout);
+            }
+            session.completeSettlement(payout);
+            return true;
+        } catch (RuntimeException exception) {
+            session.failSettlement();
+            throw exception;
+        }
+    }
+
+    public void selectStake(UUID playerId, long stake) {
+        if (!allowedStakes.contains(stake)) {
+            throw new IllegalArgumentException("Unsupported roulette stake: " + stake);
+        }
+        openSession(playerId).selectStake(stake);
+    }
+
+    public boolean resetForNextRound(UUID playerId) {
+        RouletteSession session = sessions.get(playerId);
+        if (session == null || session.phase() != RoulettePhase.RESULT || !session.settled()) {
+            return false;
+        }
+        session.resetForNextRound();
+        return true;
+    }
+
+    public void closeSession(UUID playerId) {
+        RouletteSession session = sessions.get(playerId);
+        if (session == null) {
+            return;
+        }
+        if (session.stakeWithdrawn() && !session.settled()) {
+            settle(playerId);
+        }
+        if (!session.stakeWithdrawn() || session.settled()) {
+            sessions.remove(playerId, session);
+        }
+    }
+
+    public void settleAll() {
+        RuntimeException firstFailure = null;
+        for (UUID playerId : List.copyOf(sessions.keySet())) {
+            try {
+                closeSession(playerId);
+            } catch (RuntimeException exception) {
+                if (firstFailure == null) {
+                    firstFailure = exception;
+                }
+            }
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
+    }
+
+    public void updateConfiguration(List<Long> stakes, int outsideMultiplier, int exactMultiplier) {
+        if (stakes.isEmpty() || stakes.stream().anyMatch(stake -> stake == null || stake <= 0)) {
+            throw new IllegalArgumentException("Roulette stakes must contain positive values");
+        }
+        this.allowedStakes = stakes.stream().distinct().sorted().toList();
+        this.engine = new RouletteEngine(outsideMultiplier, exactMultiplier);
     }
 
     public List<Long> allowedStakes() {
         return allowedStakes;
     }
 
-    public void setAllowedStakes(List<Long> stakes) {
-        if (stakes.isEmpty() || stakes.stream().anyMatch(stake -> stake == null || stake <= 0)) {
-            throw new IllegalArgumentException("Roulette stakes must contain positive values");
+    public int outsideMultiplier() { return engine.outsideMultiplier(); }
+    public int exactMultiplier() { return engine.exactMultiplier(); }
+
+    public Collection<RouletteSession> sessions() {
+        return List.copyOf(sessions.values());
+    }
+
+    public record StartRoundOutcome(boolean started, RouletteSession session, String error) {
+        private static StartRoundOutcome success(RouletteSession session) {
+            return new StartRoundOutcome(true, session, null);
         }
-        this.allowedStakes = stakes.stream().distinct().sorted().toList();
-    }
 
-    public void registerTable(RouletteTable table) {
-        tables.put(table.id(), table);
-    }
-
-    public Optional<RouletteTable> table(UUID id) {
-        return Optional.ofNullable(tables.get(id));
-    }
-
-    public Collection<RouletteTable> tables() {
-        return List.copyOf(tables.values());
-    }
-
-    public boolean removeTable(UUID id) {
-        return tables.remove(id) != null;
+        private static StartRoundOutcome failure(RouletteSession session, String error) {
+            return new StartRoundOutcome(false, session, error);
+        }
     }
 }

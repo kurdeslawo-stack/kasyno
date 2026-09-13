@@ -1,8 +1,8 @@
 # CasinoCore
 
-CasinoCore is a modular casino plugin foundation for **Minecraft Java / Paper 26.2**. The first game is Roulette; Blackjack is planned as the next game built on the same core.
+CasinoCore is a modular casino plugin for **Minecraft Java / Paper 26.2**. The first implemented game is Roulette; Blackjack is planned as the next game built on the same core.
 
-This repository currently contains the plugin skeleton and production-ready Roulette visual assets. Full Roulette gameplay, GUI and animation are intentionally outside this stage.
+Roulette uses a 54-slot inventory GUI, a server-side game engine and persistent `minecraft:interaction` hitboxes. The physical table model remains independent and is not spawned or animated by the plugin yet.
 
 ## Requirements and build
 
@@ -26,12 +26,26 @@ The plugin JAR is written to `target/CasinoCore-0.1.0-SNAPSHOT.jar`.
 
 ## Plugin foundation
 
-- `EconomyProvider` separates casino games from the server's future coin system.
+- `EconomyProvider` separates casino games from the server economy.
 - `LocalEconomyProvider` is an in-memory development provider. Its balances disappear after restart and it is not intended for production.
-- Roulette accepts the configured stakes **1, 5 and 25 coins**.
-- `/casino`, `/casino reload`, `/casino balance`, `/casino coins set <player> <amount>` and `/casino coins add <player> <amount>` provide initial administration and testing commands.
+- `VaultEconomyProvider` delegates balances and transactions to the Economy service registered in Vault. Vault API is a provided dependency and is not bundled in the plugin JAR.
+- Roulette uses numbers **0-12**, configured stakes **1, 5 and 25 coins**, outside bets with total return x2 and exact-number bets with total return x12.
+- The result is drawn once before the slowing GUI animation starts. Closing the inventory or leaving the server settles an already-funded round exactly once.
 
-No Vault or external coin plugin integration is included yet.
+Set `economy.provider` to `local` or `vault`. Local mode starts without Vault. Vault mode disables CasinoCore with a clear console error when Vault or its Economy service is unavailable.
+
+## Commands
+
+- `/casino` — plugin status and configured stakes
+- `/casino balance` — own coin balance
+- `/casino reload` — reload stakes, payouts and hitbox dimensions
+- `/casino coins set <player> <amount>` — set development balance in local mode
+- `/casino coins add <player> <amount>` — add development coins in local mode
+- `/casino roulette open` — open the Roulette GUI for development
+- `/casino roulette create` — create and persist an invisible Roulette interaction hitbox
+- `/casino roulette remove` — remove the nearest Roulette hitbox
+
+Administrative and Roulette development commands require `casinocore.admin`.
 
 ## Roulette assets
 
@@ -45,6 +59,6 @@ Run `tools/build_roulette_assets.py` from the repository root to regenerate the 
 
 ## Roadmap
 
-1. Connect the server's coin system through a production `EconomyProvider`.
-2. Implement Roulette table placement, betting and animations.
+1. Connect and validate the production Vault economy on the target server.
+2. Bind the separate 3D table renderer and wheel animation to persisted interaction hitboxes.
 3. Add Blackjack using the shared economy layer.

@@ -4,6 +4,19 @@ roulette:
     - 5
     - 25
 
+  numbers:
+    min: 0
+    max: 12
+
+  payouts:
+    outside: 2
+    exact: 12
+
+  interaction:
+    width: 2.75
+    height: 1.5
+    remove-radius: 4.0
+
 economy:
   provider: local
   local:

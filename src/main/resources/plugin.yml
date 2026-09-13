@@ -5,6 +5,7 @@ api-version: '26.2'
 description: Casino foundation with a pluggable economy and Roulette assets.
 author: kurdeslawo-stack
 website: https://github.com/kurdeslawo-stack/kasyno
+softdepend: [Vault]
 
 commands:
   casino:
