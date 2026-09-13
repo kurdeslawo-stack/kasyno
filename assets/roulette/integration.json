@@ -1,0 +1,90 @@
+{
+  "asset": "roulette_table",
+  "target": "Minecraft Java item_display",
+  "pack_baseline": "26.2 / resource pack format 88.0",
+  "units_per_block": 16,
+  "table_size_blocks": [
+    2.75,
+    1.174375,
+    1.63375
+  ],
+  "model_anchor": [
+    8,
+    8,
+    8
+  ],
+  "floor_offset_blocks": -0.5,
+  "front_direction": "+Z",
+  "atlas_pixels": [
+    512,
+    512
+  ],
+  "surface_texels_per_model_unit": 8,
+  "wheel_model_pivot": [
+    8,
+    8,
+    8
+  ],
+  "wheel_pivot_in_table_model": [
+    -3,
+    16.14,
+    7
+  ],
+  "wheel_display_offset_blocks": [
+    -0.6875,
+    0.50875,
+    -0.0625
+  ],
+  "ball_display_offset_blocks": [
+    -0.6875,
+    0.5393749999999999,
+    -0.35
+  ],
+  "ball_orbit_radius_blocks": 0.2875,
+  "ball_orbit_height_above_wheel_pivot_blocks": 0.030625,
+  "element_counts": {
+    "roulette_table": 96,
+    "roulette_table_base": 84,
+    "roulette_wheel": 11,
+    "roulette_ball": 1
+  },
+  "european_wheel_clockwise_order": [
+    0,
+    32,
+    15,
+    19,
+    4,
+    21,
+    2,
+    25,
+    17,
+    34,
+    6,
+    27,
+    13,
+    36,
+    11,
+    30,
+    8,
+    23,
+    10,
+    5,
+    24,
+    16,
+    33,
+    1,
+    20,
+    14,
+    31,
+    9,
+    22,
+    18,
+    29,
+    7,
+    28,
+    12,
+    35,
+    3,
+    26
+  ]
+}

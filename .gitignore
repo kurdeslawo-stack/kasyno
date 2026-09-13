@@ -1,0 +1,14 @@
+/target/
+/.mvn/repository/
+/.mvn/wrapper/dists/
+/.asset_import/
+__pycache__/
+/.idea/
+/.vscode/
+*.iml
+*.log
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db

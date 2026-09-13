@@ -1,0 +1,21 @@
+name: CasinoCore
+version: '${project.version}'
+main: pl.kurdeslawo.casinocore.CasinoCorePlugin
+api-version: '26.2'
+description: Casino foundation with a pluggable economy and Roulette assets.
+author: kurdeslawo-stack
+website: https://github.com/kurdeslawo-stack/kasyno
+
+commands:
+  casino:
+    description: CasinoCore administration and development commands.
+    usage: /casino [reload|balance|coins]
+    permission: casinocore.command
+
+permissions:
+  casinocore.command:
+    description: Allows access to the base /casino command.
+    default: true
+  casinocore.admin:
+    description: Allows CasinoCore configuration and test economy administration.
+    default: op

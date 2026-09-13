@@ -1,0 +1,10 @@
+roulette:
+  stakes:
+    - 1
+    - 5
+    - 25
+
+economy:
+  provider: local
+  local:
+    starting-balance: 0
