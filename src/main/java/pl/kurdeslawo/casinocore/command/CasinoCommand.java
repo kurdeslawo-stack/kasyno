@@ -57,16 +57,19 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("Only a player can use /casino balance.");
             return true;
         }
-        sender.sendMessage("Balance: " + plugin.economyProvider().getBalance(player.getUniqueId()) + " coins.");
+        try {
+            sender.sendMessage("Balance: " + plugin.economyProvider().getBalance(player.getUniqueId()) + " coins.");
+        } catch (RuntimeException exception) {
+            plugin.getLogger().severe("ERROR: Economy balance lookup failed for " + player.getUniqueId()
+                + ": " + exception.getMessage());
+            sender.sendMessage("The economy is temporarily unavailable. Check the server console.");
+        }
         return true;
     }
 
     private boolean roulette(CommandSender sender, String[] args) {
-        if (!requireAdmin(sender)) {
-            return true;
-        }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Roulette development commands must be used by a player.");
+            sender.sendMessage("Roulette commands must be used by a player.");
             return true;
         }
         if (args.length != 2) {
@@ -75,15 +78,24 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         }
         return switch (args[1].toLowerCase(Locale.ROOT)) {
             case "open" -> {
+                if (!requirePermission(sender, "casinocore.roulette.open")) {
+                    yield true;
+                }
                 plugin.rouletteGui().open(player);
                 yield true;
             }
             case "create" -> {
+                if (!requirePermission(sender, "casinocore.roulette.manage")) {
+                    yield true;
+                }
                 Interaction interaction = plugin.interactionManager().create(player.getLocation());
                 sender.sendMessage("Created Roulette interaction hitbox: " + interaction.getUniqueId());
                 yield true;
             }
             case "remove" -> {
+                if (!requirePermission(sender, "casinocore.roulette.manage")) {
+                    yield true;
+                }
                 double radius = plugin.getConfig().getDouble("roulette.interaction.remove-radius", 4.0);
                 boolean removed = plugin.interactionManager().removeNearest(player.getLocation(), radius).isPresent();
                 sender.sendMessage(removed ? "Removed the nearest Roulette hitbox." : "No Roulette hitbox found nearby.");
@@ -138,7 +150,11 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private static boolean requireAdmin(CommandSender sender) {
-        if (sender.hasPermission("casinocore.admin")) {
+        return requirePermission(sender, "casinocore.admin");
+    }
+
+    private static boolean requirePermission(CommandSender sender, String permission) {
+        if (sender.hasPermission(permission)) {
             return true;
         }
         sender.sendMessage("You do not have permission to use this command.");
@@ -158,15 +174,35 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                                  @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
-            return matching(List.of("reload", "balance", "coins", "roulette"), args[0]);
+            List<String> commands = new ArrayList<>();
+            commands.add("balance");
+            if (sender.hasPermission("casinocore.admin")) {
+                commands.add("reload");
+                commands.add("coins");
+            }
+            if (sender.hasPermission("casinocore.roulette.open")
+                || sender.hasPermission("casinocore.roulette.manage")) {
+                commands.add("roulette");
+            }
+            return matching(commands, args[0]);
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("coins")) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("coins")
+            && sender.hasPermission("casinocore.admin")) {
             return matching(List.of("set", "add"), args[1]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("roulette")) {
-            return matching(List.of("open", "create", "remove"), args[1]);
+            List<String> rouletteCommands = new ArrayList<>();
+            if (sender.hasPermission("casinocore.roulette.open")) {
+                rouletteCommands.add("open");
+            }
+            if (sender.hasPermission("casinocore.roulette.manage")) {
+                rouletteCommands.add("create");
+                rouletteCommands.add("remove");
+            }
+            return matching(rouletteCommands, args[1]);
         }
-        if (args.length == 3 && args[0].equalsIgnoreCase("coins")) {
+        if (args.length == 3 && args[0].equalsIgnoreCase("coins")
+            && sender.hasPermission("casinocore.admin")) {
             return matching(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[2]);
         }
         return List.of();

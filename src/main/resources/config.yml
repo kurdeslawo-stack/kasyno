@@ -1,23 +1,45 @@
+# CasinoCore 1.0.0 production configuration.
 roulette:
+  # Available stakes shown in the GUI. The current layout supports up to three values.
   stakes:
     - 1
     - 5
     - 25
 
+  # This release uses the fixed compact Roulette range 0-12.
   numbers:
     min: 0
     max: 12
 
+  # Total return multipliers, including the original stake.
   payouts:
     outside: 2
     exact: 12
 
+  # Animation timings in server ticks (20 ticks are approximately one second).
+  animation:
+    fast-delay-ticks: 2
+    medium-delay-ticks: 3
+    slow-delay-ticks: 5
+    final-delay-ticks: 8
+    final-pulse-delay-ticks: 4
+    result-duration-ticks: 50
+
+  # Animation/result sounds can be muted or balanced without changing GUI text.
+  sounds:
+    enabled: true
+    tick-volume: 0.32
+    final-volume: 0.95
+    win-volume: 0.90
+
+  # Hitbox settings for the existing Interaction entities.
   interaction:
     width: 2.75
     height: 1.5
     remove-radius: 4.0
 
 economy:
-  provider: local
+  # Production: vault. Use local only for development; local balances are not persistent.
+  provider: vault
   local:
     starting-balance: 0

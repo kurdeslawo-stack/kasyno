@@ -5,6 +5,7 @@ import pl.kurdeslawo.casinocore.economy.EconomyProvider;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,14 +13,22 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RouletteManager {
     private final EconomyProvider economy;
     private final RouletteRandom random;
+    private final RouletteHistoryRepository history;
     private final Map<UUID, RouletteSession> sessions = new ConcurrentHashMap<>();
     private volatile List<Long> allowedStakes;
     private volatile RouletteEngine engine;
 
     public RouletteManager(EconomyProvider economy, RouletteRandom random, List<Long> allowedStakes,
                            int outsideMultiplier, int exactMultiplier) {
-        this.economy = economy;
-        this.random = random;
+        this(economy, random, allowedStakes, outsideMultiplier, exactMultiplier,
+            new InMemoryRouletteHistoryRepository());
+    }
+
+    public RouletteManager(EconomyProvider economy, RouletteRandom random, List<Long> allowedStakes,
+                           int outsideMultiplier, int exactMultiplier, RouletteHistoryRepository history) {
+        this.economy = Objects.requireNonNull(economy, "economy");
+        this.random = Objects.requireNonNull(random, "random");
+        this.history = Objects.requireNonNull(history, "history");
         updateConfiguration(allowedStakes, outsideMultiplier, exactMultiplier);
     }
 
@@ -52,12 +61,12 @@ public final class RouletteManager {
             if (bet == null) {
                 return StartRoundOutcome.failure(session, "Select a bet first.");
             }
+            RouletteResult result = random.nextResult();
+            long totalReturn = engine.totalReturn(bet, result);
             if (!economy.has(playerId, stake) || !economy.withdraw(playerId, stake)) {
                 return StartRoundOutcome.failure(session, "You do not have enough coins.");
             }
 
-            RouletteResult result = random.nextResult();
-            long totalReturn = engine.totalReturn(bet, result);
             session.beginSpin(bet, result, totalReturn);
             return StartRoundOutcome.success(session);
         }
@@ -69,11 +78,14 @@ public final class RouletteManager {
             return false;
         }
         try {
+            RouletteBet bet = session.selectedBet();
+            RouletteResult result = session.result();
             long payout = session.expectedPayout();
             if (payout > 0) {
                 economy.deposit(playerId, payout);
             }
             session.completeSettlement(payout);
+            history.record(RouletteRoundRecord.from(bet, result, payout));
             return true;
         } catch (RuntimeException exception) {
             session.failSettlement();
@@ -143,6 +155,14 @@ public final class RouletteManager {
 
     public Collection<RouletteSession> sessions() {
         return List.copyOf(sessions.values());
+    }
+
+    public List<RouletteRoundRecord> recentRounds(UUID playerId) {
+        return history.recentRounds(playerId);
+    }
+
+    public RoulettePlayerStats playerStats(UUID playerId) {
+        return history.stats(playerId);
     }
 
     public record StartRoundOutcome(boolean started, RouletteSession session, String error) {

@@ -11,6 +11,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
 import pl.kurdeslawo.casinocore.roulette.RouletteBet;
 import pl.kurdeslawo.casinocore.roulette.RouletteBetType;
@@ -18,7 +19,9 @@ import pl.kurdeslawo.casinocore.roulette.RouletteColor;
 import pl.kurdeslawo.casinocore.roulette.RouletteEngine;
 import pl.kurdeslawo.casinocore.roulette.RouletteManager;
 import pl.kurdeslawo.casinocore.roulette.RoulettePhase;
+import pl.kurdeslawo.casinocore.roulette.RoulettePlayerStats;
 import pl.kurdeslawo.casinocore.roulette.RouletteResult;
+import pl.kurdeslawo.casinocore.roulette.RouletteRoundRecord;
 import pl.kurdeslawo.casinocore.roulette.RouletteSession;
 
 import java.util.ArrayList;
@@ -31,6 +34,8 @@ public final class RouletteGui {
     public static final int CLOSE_SLOT = 53;
     private static final int LAST_RESULT_SLOT = 43;
     private static final int BALANCE_SLOT = 50;
+    private static final int STATS_SLOT = 7;
+    private static final int[] HISTORY_SLOTS = {8, 17, 26, 35, 44};
     private static final int[] NUMBER_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24};
     private static final int[] STAKE_SLOTS = {46, 47, 48};
     private static final Map<Integer, RouletteBetType> OUTSIDE_BETS = Map.of(
@@ -39,10 +44,12 @@ public final class RouletteGui {
         32, RouletteBetType.LOW, 33, RouletteBetType.HIGH
     );
 
+    private final JavaPlugin plugin;
     private final RouletteManager manager;
     private final EconomyProvider economy;
 
-    public RouletteGui(RouletteManager manager, EconomyProvider economy) {
+    public RouletteGui(JavaPlugin plugin, RouletteManager manager, EconomyProvider economy) {
+        this.plugin = plugin;
         this.manager = manager;
         this.economy = economy;
     }
@@ -70,6 +77,7 @@ public final class RouletteGui {
         }
 
         renderNumbers(inventory, highlightedNumber, session);
+        renderPlayerHistory(inventory, player);
         inventory.setItem(28, outsideBetItem(session, RouletteBetType.RED, Material.REDSTONE,
             "Czerwone", NamedTextColor.RED, "czerwony numer."));
         inventory.setItem(29, outsideBetItem(session, RouletteBetType.BLACK, Material.COAL,
@@ -98,7 +106,7 @@ public final class RouletteGui {
         }
 
         inventory.setItem(BALANCE_SLOT, item(Material.SUNFLOWER,
-            Component.text("Saldo: " + economy.getBalance(player.getUniqueId()) + " coinów", NamedTextColor.YELLOW), false,
+            balanceName(player), false,
             Component.text("Aktualna stawka: ", NamedTextColor.GRAY)
                 .append(Component.text(session.selectedStake(), NamedTextColor.GOLD))));
         inventory.setItem(CLOSE_SLOT, item(Material.BARRIER,
@@ -192,6 +200,48 @@ public final class RouletteGui {
                 TextDecoration.BOLD), false, lore);
     }
 
+    private void renderPlayerHistory(Inventory inventory, Player player) {
+        RoulettePlayerStats stats = manager.playerStats(player.getUniqueId());
+        long balance = stats.netBalance();
+        NamedTextColor balanceColor = balance > 0 ? NamedTextColor.GREEN
+            : balance < 0 ? NamedTextColor.RED : NamedTextColor.GRAY;
+        inventory.setItem(STATS_SLOT, item(Material.WRITABLE_BOOK,
+            Component.text("TWOJE STATYSTYKI", NamedTextColor.GOLD, TextDecoration.BOLD), false,
+            Component.text("Rozegrane: ", NamedTextColor.GRAY)
+                .append(Component.text(stats.roundsPlayed(), NamedTextColor.WHITE)),
+            Component.text("Wygrane: ", NamedTextColor.GRAY)
+                .append(Component.text(stats.roundsWon(), NamedTextColor.GREEN)),
+            Component.text("Przegrane: ", NamedTextColor.GRAY)
+                .append(Component.text(stats.roundsLost(), NamedTextColor.RED)),
+            Component.text("Postawiono: ", NamedTextColor.GRAY)
+                .append(Component.text(stats.totalStaked(), NamedTextColor.YELLOW)),
+            Component.text("Wypłacono: ", NamedTextColor.GRAY)
+                .append(Component.text(stats.totalPayout(), NamedTextColor.YELLOW)),
+            Component.empty(),
+            Component.text("Bilans: ", NamedTextColor.GRAY)
+                .append(Component.text(signed(balance), balanceColor))));
+
+        List<RouletteRoundRecord> rounds = manager.recentRounds(player.getUniqueId());
+        for (int index = 0; index < Math.min(HISTORY_SLOTS.length, rounds.size()); index++) {
+            RouletteRoundRecord round = rounds.get(index);
+            long net = round.netChange();
+            NamedTextColor netColor = net >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED;
+            inventory.setItem(HISTORY_SLOTS[index], item(round.won() ? Material.LIME_DYE : Material.RED_DYE,
+                Component.text(round.won() ? "WYGRANA" : "PRZEGRANA",
+                    round.won() ? NamedTextColor.GREEN : NamedTextColor.RED, TextDecoration.BOLD), false,
+                Component.text("Wynik: ", NamedTextColor.GRAY)
+                    .append(Component.text(round.result().winningNumber(), resultColor(round.result().color()))),
+                Component.text("Zakład: ", NamedTextColor.GRAY)
+                    .append(Component.text(betLabel(round.betType(), round.selectedNumber()), NamedTextColor.WHITE)),
+                Component.text("Stawka: ", NamedTextColor.GRAY)
+                    .append(Component.text(round.stake(), NamedTextColor.YELLOW)),
+                Component.text("Wypłata: ", NamedTextColor.GRAY)
+                    .append(Component.text(round.payout(), NamedTextColor.YELLOW)),
+                Component.text("Bilans: ", netColor)
+                    .append(Component.text(signed(net), netColor))));
+        }
+    }
+
     private static List<Component> betLore(List<String> description, int multiplier, boolean selected) {
         List<Component> lore = new ArrayList<>();
         description.forEach(line -> lore.add(Component.text(line, NamedTextColor.GRAY)));
@@ -209,8 +259,12 @@ public final class RouletteGui {
     }
 
     private static String betLabel(RouletteBet bet) {
-        return switch (bet.type()) {
-            case EXACT_NUMBER -> "Numer " + bet.selectedNumber();
+        return betLabel(bet.type(), bet.selectedNumber());
+    }
+
+    private static String betLabel(RouletteBetType type, Integer selectedNumber) {
+        return switch (type) {
+            case EXACT_NUMBER -> "Numer " + selectedNumber;
             case RED -> "Czerwone";
             case BLACK -> "Czarne";
             case EVEN -> "Parzyste";
@@ -248,6 +302,20 @@ public final class RouletteGui {
 
     private static String coinWord(long amount) {
         return amount == 1 ? "coin" : "coinów";
+    }
+
+    private static String signed(long amount) {
+        return amount > 0 ? "+" + amount : Long.toString(amount);
+    }
+
+    private Component balanceName(Player player) {
+        try {
+            return Component.text("Saldo: " + economy.getBalance(player.getUniqueId()) + " coinów", NamedTextColor.YELLOW);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().severe("ERROR: Economy balance lookup failed for " + player.getUniqueId()
+                + ": " + exception.getMessage());
+            return Component.text("Saldo niedostępne", NamedTextColor.RED);
+        }
     }
 
     private static ItemStack item(Material material, Component name, boolean glow, Component... lore) {

@@ -22,7 +22,7 @@ On Windows:
 .\mvnw.cmd clean verify
 ```
 
-The plugin JAR is written to `target/CasinoCore-0.1.0-SNAPSHOT.jar`.
+The plugin JAR is written to `target/CasinoCore-1.0.0.jar`.
 
 ## Plugin foundation
 
@@ -31,8 +31,10 @@ The plugin JAR is written to `target/CasinoCore-0.1.0-SNAPSHOT.jar`.
 - `VaultEconomyProvider` delegates balances and transactions to the Economy service registered in Vault. Vault API is a provided dependency and is not bundled in the plugin JAR.
 - Roulette uses numbers **0-12**, configured stakes **1, 5 and 25 coins**, outside bets with total return x2 and exact-number bets with total return x12.
 - The result is drawn once before the slowing GUI animation starts. Closing the inventory or leaving the server settles an already-funded round exactly once.
+- When a player closes Roulette during a spin, a successfully settled result reopens on the next server tick only if the player is still online and has not opened another container.
+- The GUI shows per-player totals and the five newest settled rounds. This data is kept in memory and resets when the plugin or server restarts.
 
-Set `economy.provider` to `local` or `vault`. Local mode starts without Vault. Vault mode disables CasinoCore with a clear console error when Vault or its Economy service is unavailable.
+The release configuration defaults to `economy.provider: vault`. Vault mode disables CasinoCore with a clear console error when Vault or its Economy service is unavailable; it never falls back to the local provider. Set the provider to `local` only on a development server.
 
 ## Commands
 
@@ -45,7 +47,7 @@ Set `economy.provider` to `local` or `vault`. Local mode starts without Vault. V
 - `/casino roulette create` — create and persist an invisible Roulette interaction hitbox
 - `/casino roulette remove` — remove the nearest Roulette hitbox
 
-Administrative and Roulette development commands require `casinocore.admin`.
+`/casino reload` and local coin administration require `casinocore.admin`. Roulette command access is split into `casinocore.roulette.open` and `casinocore.roulette.manage`; `casinocore.admin` grants both.
 
 ## Roulette assets
 

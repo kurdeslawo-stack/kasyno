@@ -39,7 +39,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
         rouletteManager = new RouletteManager(economyProvider, new RouletteRandom(), stakes(),
             getConfig().getInt("roulette.payouts.outside", 2),
             getConfig().getInt("roulette.payouts.exact", 12));
-        rouletteGui = new RouletteGui(rouletteManager, economyProvider);
+        rouletteGui = new RouletteGui(this, rouletteManager, economyProvider);
         rouletteAnimation = new RouletteAnimation(this, rouletteManager, rouletteGui);
         interactionManager = new RouletteTableInteractionManager(this);
         interactionManager.load();
@@ -56,7 +56,15 @@ public final class CasinoCorePlugin extends JavaPlugin {
         CasinoCommand executor = new CasinoCommand(this);
         casinoCommand.setExecutor(executor);
         casinoCommand.setTabCompleter(executor);
-        getLogger().info("CasinoCore enabled with economy provider '" + activeEconomyProvider + "'.");
+        boolean vaultDetected = getServer().getPluginManager().isPluginEnabled("Vault");
+        String economyName = economyProvider instanceof VaultEconomyProvider vault
+            ? "vault/" + vault.providerName()
+            : "local (development only)";
+        getLogger().info("CasinoCore v" + getPluginMeta().getVersion() + " enabled | economy="
+            + economyName + " | Vault=" + (vaultDetected ? "detected" : "not detected"));
+        if (economyProvider instanceof LocalEconomyProvider) {
+            getLogger().warning("LocalEconomyProvider is active. It is intended only for development and loses balances on restart.");
+        }
     }
 
     @Override
@@ -68,7 +76,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
             try {
                 rouletteManager.settleAll();
             } catch (RuntimeException exception) {
-                getLogger().severe("A pending Roulette round could not be settled during shutdown: " + exception.getMessage());
+                getLogger().severe("ERROR: A pending Roulette round could not be settled during shutdown: " + exception.getMessage());
             }
         }
     }
@@ -78,7 +86,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
         if (!validateRouletteConfiguration()) {
             return false;
         }
-        String configuredProvider = getConfig().getString("economy.provider", "local").toLowerCase(Locale.ROOT);
+        String configuredProvider = configuredEconomyProvider();
         if (!configuredProvider.equals(activeEconomyProvider)) {
             getLogger().severe("Economy provider changes require a server restart. CasinoCore remains on '"
                 + activeEconomyProvider + "'.");
@@ -87,28 +95,29 @@ public final class CasinoCorePlugin extends JavaPlugin {
         rouletteManager.updateConfiguration(stakes(),
             getConfig().getInt("roulette.payouts.outside", 2),
             getConfig().getInt("roulette.payouts.exact", 12));
+        rouletteAnimation.reloadConfiguration();
         interactionManager.updateDimensions();
         return true;
     }
 
     private boolean initializeEconomy() {
-        activeEconomyProvider = getConfig().getString("economy.provider", "local").toLowerCase(Locale.ROOT);
+        activeEconomyProvider = configuredEconomyProvider();
         if (activeEconomyProvider.equals("local")) {
             long startingBalance = getConfig().getLong("economy.local.starting-balance", 0L);
             economyProvider = new LocalEconomyProvider(startingBalance);
             return true;
         }
         if (!activeEconomyProvider.equals("vault")) {
-            getLogger().severe("Unknown economy.provider '" + activeEconomyProvider + "'. Allowed: local, vault.");
+            getLogger().severe("ERROR: Unknown economy.provider '" + activeEconomyProvider + "'. Allowed: local, vault.");
             return false;
         }
-        if (getServer().getPluginManager().getPlugin("Vault") == null) {
-            getLogger().severe("economy.provider is 'vault', but Vault is not installed. CasinoCore will be disabled.");
+        if (!getServer().getPluginManager().isPluginEnabled("Vault")) {
+            getLogger().severe("ERROR: economy.provider is 'vault', but Vault is missing or disabled. CasinoCore will be disabled.");
             return false;
         }
         RegisteredServiceProvider<Economy> registration = getServer().getServicesManager().getRegistration(Economy.class);
         if (registration == null || registration.getProvider() == null) {
-            getLogger().severe("Vault is installed, but no Economy service is registered. CasinoCore will be disabled.");
+            getLogger().severe("ERROR: Vault is active, but no Economy provider is registered. CasinoCore will be disabled.");
             return false;
         }
         economyProvider = new VaultEconomyProvider(registration.getProvider());
@@ -134,18 +143,51 @@ public final class CasinoCorePlugin extends JavaPlugin {
             getLogger().severe("Roulette stake and payout configuration can overflow a long value.");
             return false;
         }
-        if ("vault".equalsIgnoreCase(getConfig().getString("economy.provider", "local"))
+        if ("vault".equals(configuredEconomyProvider())
             && maxStake * Math.max(outside, exact) > MAX_EXACT_VAULT_INTEGER) {
             getLogger().severe("Vault Roulette payouts cannot exceed 2^53 coins.");
             return false;
         }
         double width = getConfig().getDouble("roulette.interaction.width", 2.75);
         double height = getConfig().getDouble("roulette.interaction.height", 1.5);
-        if (width <= 0 || height <= 0) {
-            getLogger().severe("Roulette interaction width and height must be positive.");
+        double removeRadius = getConfig().getDouble("roulette.interaction.remove-radius", 4.0);
+        if (width <= 0 || height <= 0 || removeRadius <= 0) {
+            getLogger().severe("Roulette interaction width, height and remove radius must be positive.");
             return false;
         }
+        if ("local".equals(configuredEconomyProvider())
+            && getConfig().getLong("economy.local.starting-balance", 0L) < 0) {
+            getLogger().severe("economy.local.starting-balance cannot be negative.");
+            return false;
+        }
+        long fastDelay = getConfig().getLong("roulette.animation.fast-delay-ticks", 2L);
+        long mediumDelay = getConfig().getLong("roulette.animation.medium-delay-ticks", 3L);
+        long slowDelay = getConfig().getLong("roulette.animation.slow-delay-ticks", 5L);
+        long finalDelay = getConfig().getLong("roulette.animation.final-delay-ticks", 8L);
+        long pulseDelay = getConfig().getLong("roulette.animation.final-pulse-delay-ticks", 4L);
+        long resultDuration = getConfig().getLong("roulette.animation.result-duration-ticks", 50L);
+        if (fastDelay <= 0 || mediumDelay <= 0 || slowDelay <= 0 || finalDelay <= 0
+            || pulseDelay <= 0 || resultDuration <= 0) {
+            getLogger().severe("Roulette animation delays must be positive tick values.");
+            return false;
+        }
+        if (fastDelay > mediumDelay || mediumDelay > slowDelay || slowDelay > finalDelay) {
+            getLogger().severe("Roulette animation delays must keep the order fast <= medium <= slow <= final.");
+            return false;
+        }
+        for (String key : List.of("tick-volume", "final-volume", "win-volume")) {
+            double volume = getConfig().getDouble("roulette.sounds." + key, 1.0);
+            if (!Double.isFinite(volume) || volume < 0.0 || volume > 4.0) {
+                getLogger().severe("roulette.sounds." + key + " must be between 0 and 4.");
+                return false;
+            }
+        }
         return true;
+    }
+
+    private String configuredEconomyProvider() {
+        String configured = getConfig().getString("economy.provider");
+        return configured == null ? "vault" : configured.trim().toLowerCase(Locale.ROOT);
     }
 
     private List<Long> stakes() {

@@ -6,7 +6,7 @@
 
     <groupId>pl.kurdeslawo</groupId>
     <artifactId>casinocore</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>CasinoCore</name>
     <description>Casino foundation plugin for Paper 26.2</description>
 

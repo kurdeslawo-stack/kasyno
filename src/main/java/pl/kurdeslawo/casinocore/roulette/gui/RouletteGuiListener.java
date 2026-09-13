@@ -64,7 +64,16 @@ public final class RouletteGuiListener implements Listener {
         }
 
         if (slot == RouletteGui.SPIN_SLOT) {
-            RouletteManager.StartRoundOutcome outcome = manager.startRound(player.getUniqueId());
+            RouletteManager.StartRoundOutcome outcome;
+            try {
+                outcome = manager.startRound(player.getUniqueId());
+            } catch (RuntimeException exception) {
+                plugin.getLogger().severe("ERROR: Roulette withdrawal failed for " + player.getUniqueId()
+                    + ": " + exception.getMessage());
+                player.sendActionBar(Component.text(
+                    "Ekonomia jest chwilowo niedostępna. Spróbuj ponownie później.", NamedTextColor.RED));
+                return;
+            }
             if (!outcome.started()) {
                 String message = outcome.session().selectedBet() == null
                     ? "Najpierw wybierz zakład."
@@ -99,6 +108,11 @@ public final class RouletteGuiListener implements Listener {
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
         if (!(event.getInventory().getHolder() instanceof RouletteGuiHolder holder)) {
+            return;
+        }
+        RouletteSession session = manager.session(holder.playerId()).orElse(null);
+        if (event.getPlayer() instanceof Player player && session != null
+            && session.phase() == RoulettePhase.SPINNING && animation.finishAfterClose(player)) {
             return;
         }
         animation.cancel(holder.playerId());

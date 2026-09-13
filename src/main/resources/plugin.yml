@@ -9,8 +9,8 @@ softdepend: [Vault]
 
 commands:
   casino:
-    description: CasinoCore administration and development commands.
-    usage: /casino [reload|balance|coins]
+    description: CasinoCore player and administration commands.
+    usage: /casino [reload|balance|coins|roulette]
     permission: casinocore.command
 
 permissions:
@@ -20,3 +20,12 @@ permissions:
   casinocore.admin:
     description: Allows CasinoCore configuration and test economy administration.
     default: op
+    children:
+      casinocore.roulette.open: true
+      casinocore.roulette.manage: true
+  casinocore.roulette.open:
+    description: Allows opening the Roulette GUI with /casino roulette open.
+    default: false
+  casinocore.roulette.manage:
+    description: Allows creating and removing Roulette interaction hitboxes.
+    default: false
