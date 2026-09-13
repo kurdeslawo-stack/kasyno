@@ -31,7 +31,14 @@ public final class RouletteManager {
         return Optional.ofNullable(sessions.get(playerId));
     }
 
-    public StartRoundOutcome startRound(UUID playerId, RouletteBetType type, Integer selectedNumber) {
+    public void selectBet(UUID playerId, RouletteBetType type, Integer selectedNumber) {
+        RouletteSession session = openSession(playerId);
+        synchronized (session) {
+            session.selectBet(new RouletteBet(playerId, type, session.selectedStake(), selectedNumber));
+        }
+    }
+
+    public StartRoundOutcome startRound(UUID playerId) {
         RouletteSession session = openSession(playerId);
         synchronized (session) {
             if (session.phase() != RoulettePhase.SELECTING) {
@@ -41,7 +48,10 @@ public final class RouletteManager {
             if (!allowedStakes.contains(stake)) {
                 return StartRoundOutcome.failure(session, "The selected stake is no longer available.");
             }
-            RouletteBet bet = new RouletteBet(playerId, type, stake, selectedNumber);
+            RouletteBet bet = session.selectedBet();
+            if (bet == null) {
+                return StartRoundOutcome.failure(session, "Select a bet first.");
+            }
             if (!economy.has(playerId, stake) || !economy.withdraw(playerId, stake)) {
                 return StartRoundOutcome.failure(session, "You do not have enough coins.");
             }

@@ -1,5 +1,8 @@
 package pl.kurdeslawo.casinocore.roulette.gui;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -56,6 +59,22 @@ public final class RouletteGuiListener implements Listener {
         if (stakeIndex >= 0 && stakeIndex < stakes.size()) {
             manager.selectStake(player.getUniqueId(), stakes.get(stakeIndex));
             gui.render(player, holder.getInventory(), null);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.35f, 1.25f);
+            return;
+        }
+
+        if (slot == RouletteGui.SPIN_SLOT) {
+            RouletteManager.StartRoundOutcome outcome = manager.startRound(player.getUniqueId());
+            if (!outcome.started()) {
+                String message = outcome.session().selectedBet() == null
+                    ? "Najpierw wybierz zakład."
+                    : "Nie masz wystarczającej liczby coinów.";
+                player.sendActionBar(Component.text(message, NamedTextColor.RED));
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.45f, 0.8f);
+                return;
+            }
+            gui.render(player, holder.getInventory(), null);
+            animation.start(player, holder.getInventory());
             return;
         }
 
@@ -65,13 +84,9 @@ public final class RouletteGuiListener implements Listener {
             return;
         }
 
-        RouletteManager.StartRoundOutcome outcome = manager.startRound(player.getUniqueId(), type, exactNumber);
-        if (!outcome.started()) {
-            player.sendMessage(outcome.error());
-            return;
-        }
+        manager.selectBet(player.getUniqueId(), type, exactNumber);
         gui.render(player, holder.getInventory(), null);
-        animation.start(player, holder.getInventory());
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.1f);
     }
 
     @EventHandler

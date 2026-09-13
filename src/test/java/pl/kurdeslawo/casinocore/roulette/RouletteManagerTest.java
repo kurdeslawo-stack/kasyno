@@ -25,9 +25,13 @@ class RouletteManagerTest {
         RouletteManager manager = new RouletteManager(economy, new RouletteRandom(alwaysRedOne),
             List.of(1L, 5L, 25L), 2, 12);
         manager.selectStake(playerId, 5);
+        assertFalse(manager.startRound(playerId).started());
+        assertEquals(100, economy.getBalance(playerId));
+        manager.selectBet(playerId, RouletteBetType.RED, null);
 
-        assertTrue(manager.startRound(playerId, RouletteBetType.RED, null).started());
-        assertFalse(manager.startRound(playerId, RouletteBetType.BLACK, null).started());
+        assertEquals(100, economy.getBalance(playerId));
+        assertTrue(manager.startRound(playerId).started());
+        assertFalse(manager.startRound(playerId).started());
         assertEquals(95, economy.getBalance(playerId));
 
         assertTrue(manager.settle(playerId));

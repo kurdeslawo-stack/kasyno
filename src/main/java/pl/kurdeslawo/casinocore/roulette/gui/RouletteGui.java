@@ -2,37 +2,41 @@ package pl.kurdeslawo.casinocore.roulette.gui;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
+import pl.kurdeslawo.casinocore.roulette.RouletteBet;
 import pl.kurdeslawo.casinocore.roulette.RouletteBetType;
 import pl.kurdeslawo.casinocore.roulette.RouletteColor;
+import pl.kurdeslawo.casinocore.roulette.RouletteEngine;
 import pl.kurdeslawo.casinocore.roulette.RouletteManager;
 import pl.kurdeslawo.casinocore.roulette.RoulettePhase;
+import pl.kurdeslawo.casinocore.roulette.RouletteResult;
 import pl.kurdeslawo.casinocore.roulette.RouletteSession;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public final class RouletteGui {
     public static final int SIZE = 54;
+    public static final int SPIN_SLOT = 40;
     public static final int CLOSE_SLOT = 53;
-    private static final int RESULT_SLOT = 40;
+    private static final int LAST_RESULT_SLOT = 43;
     private static final int BALANCE_SLOT = 50;
     private static final int[] NUMBER_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24};
     private static final int[] STAKE_SLOTS = {46, 47, 48};
     private static final Map<Integer, RouletteBetType> OUTSIDE_BETS = Map.of(
-        28, RouletteBetType.RED,
-        29, RouletteBetType.BLACK,
-        30, RouletteBetType.EVEN,
-        31, RouletteBetType.ODD,
-        32, RouletteBetType.LOW,
-        33, RouletteBetType.HIGH
+        28, RouletteBetType.RED, 29, RouletteBetType.BLACK,
+        30, RouletteBetType.EVEN, 31, RouletteBetType.ODD,
+        32, RouletteBetType.LOW, 33, RouletteBetType.HIGH
     );
 
     private final RouletteManager manager;
@@ -50,7 +54,8 @@ public final class RouletteGui {
             return;
         }
         RouletteGuiHolder holder = new RouletteGuiHolder(player.getUniqueId());
-        Inventory inventory = Bukkit.createInventory(holder, SIZE, Component.text("CasinoCore Roulette", NamedTextColor.GOLD));
+        Inventory inventory = Bukkit.createInventory(holder, SIZE,
+            plain(Component.text("CasinoCore • Ruletka", NamedTextColor.GOLD, TextDecoration.BOLD)));
         holder.attach(inventory);
         manager.openSession(player.getUniqueId());
         render(player, inventory, null);
@@ -59,75 +64,173 @@ public final class RouletteGui {
 
     public void render(Player player, Inventory inventory, Integer highlightedNumber) {
         RouletteSession session = manager.openSession(player.getUniqueId());
-        ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "));
+        ItemStack filler = item(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), false);
         for (int slot = 0; slot < SIZE; slot++) {
             inventory.setItem(slot, filler);
         }
 
-        renderNumbers(inventory, highlightedNumber);
-
-        inventory.setItem(28, betItem(Material.RED_WOOL, "RED", NamedTextColor.RED));
-        inventory.setItem(29, betItem(Material.BLACK_WOOL, "BLACK", NamedTextColor.DARK_GRAY));
-        inventory.setItem(30, betItem(Material.WHITE_WOOL, "EVEN", NamedTextColor.WHITE));
-        inventory.setItem(31, betItem(Material.LIGHT_GRAY_WOOL, "ODD", NamedTextColor.GRAY));
-        inventory.setItem(32, betItem(Material.LIME_WOOL, "LOW · 1-6", NamedTextColor.GREEN));
-        inventory.setItem(33, betItem(Material.BLUE_WOOL, "HIGH · 7-12", NamedTextColor.BLUE));
+        renderNumbers(inventory, highlightedNumber, session);
+        inventory.setItem(28, outsideBetItem(session, RouletteBetType.RED, Material.REDSTONE,
+            "Czerwone", NamedTextColor.RED, "czerwony numer."));
+        inventory.setItem(29, outsideBetItem(session, RouletteBetType.BLACK, Material.COAL,
+            "Czarne", NamedTextColor.DARK_GRAY, "czarny numer."));
+        inventory.setItem(30, outsideBetItem(session, RouletteBetType.EVEN, Material.QUARTZ,
+            "Parzyste", NamedTextColor.WHITE, "liczba parzysta."));
+        inventory.setItem(31, outsideBetItem(session, RouletteBetType.ODD, Material.AMETHYST_SHARD,
+            "Nieparzyste", NamedTextColor.LIGHT_PURPLE, "liczba nieparzysta."));
+        inventory.setItem(32, outsideBetItem(session, RouletteBetType.LOW, Material.COPPER_INGOT,
+            "Niskie • 1-6", NamedTextColor.GOLD, "liczba od 1 do 6."));
+        inventory.setItem(33, outsideBetItem(session, RouletteBetType.HIGH, Material.DIAMOND,
+            "Wysokie • 7-12", NamedTextColor.AQUA, "liczba od 7 do 12."));
 
         List<Long> stakes = manager.allowedStakes();
+        Material[] stakeIcons = {Material.GOLD_NUGGET, Material.GOLD_INGOT, Material.NETHERITE_INGOT};
         for (int index = 0; index < Math.min(STAKE_SLOTS.length, stakes.size()); index++) {
             long stake = stakes.get(index);
             boolean selected = stake == session.selectedStake();
-            inventory.setItem(STAKE_SLOTS[index], item(selected ? Material.GOLD_INGOT : Material.GOLD_NUGGET,
-                Component.text(stake + (stake == 1 ? " coin" : " coins"), selected ? NamedTextColor.YELLOW : NamedTextColor.GOLD),
-                Component.text(selected ? "Selected stake" : "Click to select", NamedTextColor.GRAY)));
+            List<Component> lore = new ArrayList<>();
+            lore.add(Component.text("Wartość zakładu: ", NamedTextColor.GRAY)
+                .append(Component.text(stake + " " + coinWord(stake), NamedTextColor.YELLOW)));
+            lore.add(Component.empty());
+            lore.add(Component.text(selected ? "✓ Aktualna stawka" : "Kliknij, aby ustawić", NamedTextColor.GREEN));
+            inventory.setItem(STAKE_SLOTS[index], item(stakeIcons[index],
+                Component.text(stake + " " + coinWord(stake), NamedTextColor.GOLD), selected, lore));
         }
 
         inventory.setItem(BALANCE_SLOT, item(Material.SUNFLOWER,
-            Component.text("Balance: " + economy.getBalance(player.getUniqueId()) + " coins", NamedTextColor.YELLOW),
-            Component.text("Stake: " + session.selectedStake(), NamedTextColor.GRAY)));
-        inventory.setItem(CLOSE_SLOT, item(Material.BARRIER, Component.text("Close", NamedTextColor.RED)));
-
-        if (session.phase() == RoulettePhase.SPINNING) {
-            inventory.setItem(RESULT_SLOT, item(Material.CLOCK,
-                Component.text("Wheel spinning...", NamedTextColor.GOLD),
-                Component.text("Your bet is locked", NamedTextColor.GRAY)));
-        } else if (session.phase() == RoulettePhase.RESULT && session.result() != null) {
-            boolean won = session.payout() > 0;
-            inventory.setItem(RESULT_SLOT, item(won ? Material.EMERALD : Material.COAL,
-                Component.text("Result: " + session.result().winningNumber(), won ? NamedTextColor.GREEN : NamedTextColor.RED),
-                Component.text(won ? "Won " + session.payout() + " coins" : "No payout", NamedTextColor.GRAY)));
-        } else {
-            inventory.setItem(RESULT_SLOT, item(Material.COMPASS,
-                Component.text("Choose a bet", NamedTextColor.AQUA),
-                Component.text("The stake is withdrawn once after selection", NamedTextColor.GRAY)));
+            Component.text("Saldo: " + economy.getBalance(player.getUniqueId()) + " coinów", NamedTextColor.YELLOW), false,
+            Component.text("Aktualna stawka: ", NamedTextColor.GRAY)
+                .append(Component.text(session.selectedStake(), NamedTextColor.GOLD))));
+        inventory.setItem(CLOSE_SLOT, item(Material.BARRIER,
+            Component.text("Zamknij", NamedTextColor.RED), false));
+        inventory.setItem(SPIN_SLOT, spinItem(session));
+        if (session.phase() == RoulettePhase.SELECTING && session.result() != null) {
+            inventory.setItem(LAST_RESULT_SLOT, lastResultItem(session));
         }
     }
 
     public void highlightNumber(Inventory inventory, int highlightedNumber) {
-        renderNumbers(inventory, highlightedNumber);
+        if (!(inventory.getHolder() instanceof RouletteGuiHolder holder)) {
+            return;
+        }
+        RouletteSession session = manager.session(holder.playerId()).orElse(null);
+        if (session != null) {
+            renderNumbers(inventory, highlightedNumber, session);
+        }
     }
 
-    private void renderNumbers(Inventory inventory, Integer highlightedNumber) {
+    private void renderNumbers(Inventory inventory, Integer highlightedNumber, RouletteSession session) {
         for (int number = 0; number <= 12; number++) {
-            RouletteColor color = pl.kurdeslawo.casinocore.roulette.RouletteEngine.colorOf(number);
-            Material material = color == RouletteColor.GREEN ? Material.LIME_CONCRETE
-                : color == RouletteColor.RED ? Material.RED_CONCRETE : Material.BLACK_CONCRETE;
-            if (highlightedNumber != null && highlightedNumber == number) {
-                material = Material.YELLOW_CONCRETE;
+            RouletteColor color = RouletteEngine.colorOf(number);
+            Material material = color == RouletteColor.GREEN ? Material.SLIME_BALL
+                : color == RouletteColor.RED ? Material.RED_DYE : Material.INK_SAC;
+            boolean selected = isSelected(session, RouletteBetType.EXACT_NUMBER, number);
+            boolean highlighted = highlightedNumber != null && highlightedNumber == number;
+            Component name = Component.text(highlighted ? "▶ Numer " + number + " ◀" : "Numer " + number,
+                highlighted ? NamedTextColor.GOLD : resultColor(color), TextDecoration.BOLD);
+            List<Component> lore = betLore(
+                List.of("Wygrywasz, jeśli wypadnie", "dokładnie ten numer."),
+                manager.exactMultiplier(), selected);
+            if (highlighted) {
+                lore.add(0, Component.text("● Koło wskazuje ten numer", NamedTextColor.YELLOW));
             }
-            NamedTextColor textColor = color == RouletteColor.RED ? NamedTextColor.RED
-                : color == RouletteColor.BLACK ? NamedTextColor.DARK_GRAY : NamedTextColor.GREEN;
-            inventory.setItem(NUMBER_SLOTS[number], item(material,
-                Component.text("Number " + number, textColor),
-                Component.text("Exact number · total return x" + manager.exactMultiplier(), NamedTextColor.GRAY)));
+            inventory.setItem(NUMBER_SLOTS[number], item(material, name, selected || highlighted, lore));
         }
+    }
+
+    private ItemStack outsideBetItem(RouletteSession session, RouletteBetType type, Material material,
+                                     String label, NamedTextColor color, String condition) {
+        boolean selected = isSelected(session, type, null);
+        return item(material, Component.text(label, color, TextDecoration.BOLD), selected,
+            betLore(List.of("Wygrywasz, jeśli wypadnie", condition), manager.outsideMultiplier(), selected));
+    }
+
+    private ItemStack spinItem(RouletteSession session) {
+        if (session.phase() == RoulettePhase.SPINNING) {
+            return item(Material.ENDER_EYE,
+                Component.text("KOŁO SIĘ KRĘCI...", NamedTextColor.YELLOW, TextDecoration.BOLD), true,
+                Component.text("Poczekaj na wynik", NamedTextColor.GRAY));
+        }
+        if (session.phase() == RoulettePhase.RESULT) {
+            boolean won = session.payout() > 0;
+            return item(won ? Material.EMERALD : Material.COAL,
+                Component.text(won ? "WYGRANA!" : "PRZEGRANA",
+                    won ? NamedTextColor.GREEN : NamedTextColor.RED, TextDecoration.BOLD), true,
+                Component.text("Wynik: ", NamedTextColor.GRAY)
+                    .append(Component.text(session.result().winningNumber(),
+                        resultColor(session.result().color()), TextDecoration.BOLD)),
+                Component.text(won ? "Wygrana: " : "Stracono: ", NamedTextColor.GRAY)
+                    .append(Component.text((won ? session.payout() : session.resultStake()) + " coinów",
+                        NamedTextColor.YELLOW)));
+        }
+        RouletteBet bet = session.selectedBet();
+        if (bet == null) {
+            return item(Material.CLOCK, Component.text("ZAKRĘĆ", NamedTextColor.GOLD, TextDecoration.BOLD), false,
+                Component.text("Najpierw wybierz zakład.", NamedTextColor.RED));
+        }
+        return item(Material.CLOCK, Component.text("ZAKRĘĆ", NamedTextColor.GOLD, TextDecoration.BOLD), true,
+            Component.text("Zakład: ", NamedTextColor.GRAY).append(Component.text(betLabel(bet), NamedTextColor.WHITE)),
+            Component.text("Stawka: ", NamedTextColor.GRAY).append(Component.text(bet.stake(), NamedTextColor.YELLOW)),
+            Component.empty(), Component.text("Kliknij, aby rozpocząć", NamedTextColor.GREEN));
+    }
+
+    private ItemStack lastResultItem(RouletteSession session) {
+        RouletteResult result = session.result();
+        boolean won = session.payout() > 0;
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("Wynik: ", NamedTextColor.GRAY)
+            .append(Component.text(result.winningNumber(), resultColor(result.color()), TextDecoration.BOLD)));
+        if (won) {
+            lore.add(Component.text("Wygrana: ", NamedTextColor.GRAY)
+                .append(Component.text(session.payout() + " coinów", NamedTextColor.YELLOW)));
+        } else {
+            lore.add(Component.text("Stracono: ", NamedTextColor.GRAY)
+                .append(Component.text(session.resultStake() + " coinów", NamedTextColor.YELLOW)));
+        }
+        return item(won ? Material.EMERALD : Material.COAL,
+            Component.text("Ostatni wynik", won ? NamedTextColor.GREEN : NamedTextColor.RED,
+                TextDecoration.BOLD), false, lore);
+    }
+
+    private static List<Component> betLore(List<String> description, int multiplier, boolean selected) {
+        List<Component> lore = new ArrayList<>();
+        description.forEach(line -> lore.add(Component.text(line, NamedTextColor.GRAY)));
+        lore.add(Component.empty());
+        lore.add(Component.text("Wypłata: ", NamedTextColor.WHITE)
+            .append(Component.text("x" + multiplier, NamedTextColor.YELLOW)));
+        lore.add(Component.empty());
+        lore.add(Component.text(selected ? "✓ Wybrano" : "Kliknij, aby wybrać", NamedTextColor.GREEN));
+        return lore;
+    }
+
+    private static boolean isSelected(RouletteSession session, RouletteBetType type, Integer number) {
+        RouletteBet bet = session.selectedBet();
+        return bet != null && bet.type() == type && java.util.Objects.equals(bet.selectedNumber(), number);
+    }
+
+    private static String betLabel(RouletteBet bet) {
+        return switch (bet.type()) {
+            case EXACT_NUMBER -> "Numer " + bet.selectedNumber();
+            case RED -> "Czerwone";
+            case BLACK -> "Czarne";
+            case EVEN -> "Parzyste";
+            case ODD -> "Nieparzyste";
+            case LOW -> "Niskie 1-6";
+            case HIGH -> "Wysokie 7-12";
+        };
+    }
+
+    public static NamedTextColor resultColor(RouletteColor color) {
+        return switch (color) {
+            case GREEN -> NamedTextColor.GREEN;
+            case RED -> NamedTextColor.RED;
+            case BLACK -> NamedTextColor.GRAY;
+        };
     }
 
     public static Integer numberAt(int slot) {
         for (int number = 0; number < NUMBER_SLOTS.length; number++) {
-            if (NUMBER_SLOTS[number] == slot) {
-                return number;
-            }
+            if (NUMBER_SLOTS[number] == slot) return number;
         }
         return null;
     }
@@ -138,25 +241,33 @@ public final class RouletteGui {
 
     public static int stakeIndexAt(int slot) {
         for (int index = 0; index < STAKE_SLOTS.length; index++) {
-            if (STAKE_SLOTS[index] == slot) {
-                return index;
-            }
+            if (STAKE_SLOTS[index] == slot) return index;
         }
         return -1;
     }
 
-    private ItemStack betItem(Material material, String label, NamedTextColor color) {
-        return item(material, Component.text(label, color), Component.text("Total return x" + manager.outsideMultiplier(), NamedTextColor.GRAY));
+    private static String coinWord(long amount) {
+        return amount == 1 ? "coin" : "coinów";
     }
 
-    private static ItemStack item(Material material, Component name, Component... lore) {
+    private static ItemStack item(Material material, Component name, boolean glow, Component... lore) {
+        return item(material, name, glow, List.of(lore));
+    }
+
+    private static ItemStack item(Material material, Component name, boolean glow, List<Component> lore) {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(name);
-        if (lore.length > 0) {
-            meta.lore(List.of(lore));
+        meta.displayName(plain(name));
+        if (!lore.isEmpty()) meta.lore(lore.stream().map(RouletteGui::plain).toList());
+        if (glow) {
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         stack.setItemMeta(meta);
         return stack;
+    }
+
+    private static Component plain(Component component) {
+        return component.decoration(TextDecoration.ITALIC, false);
     }
 }
