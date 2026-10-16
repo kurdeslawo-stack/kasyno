@@ -74,7 +74,7 @@ class RouletteManagerTest {
         assertTrue(manager.startRound(playerId).started());
         economy.failNextDeposit = true;
 
-        assertThrows(IllegalStateException.class, () -> manager.closeSession(playerId));
+        assertThrows(pl.kurdeslawo.casinocore.economy.EconomyTransactionException.class, () -> manager.closeSession(playerId));
         assertTrue(manager.session(playerId).isPresent());
         assertEquals(95, economy.getBalance(playerId));
         assertTrue(manager.recentRounds(playerId).isEmpty());
@@ -155,7 +155,7 @@ class RouletteManagerTest {
             depositCalls++;
             if (failNextDeposit) {
                 failNextDeposit = false;
-                throw new IllegalStateException("simulated provider outage");
+                throw pl.kurdeslawo.casinocore.economy.EconomyTransactionException.rejected("simulated provider rejection");
             }
             balance += amount;
         }

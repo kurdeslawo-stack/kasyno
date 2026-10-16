@@ -70,8 +70,9 @@ public final class RouletteGuiListener implements Listener {
             } catch (RuntimeException exception) {
                 plugin.getLogger().severe("ERROR: Roulette withdrawal failed for " + player.getUniqueId()
                     + ": " + exception.getMessage());
+                gui.render(player, holder.getInventory(), null);
                 player.sendActionBar(Component.text(
-                    "Ekonomia jest chwilowo niedostępna. Spróbuj ponownie później.", NamedTextColor.RED));
+                    "Transakcja została wstrzymana. Sprawdź status w menu.", NamedTextColor.RED));
                 return;
             }
             if (!outcome.started()) {

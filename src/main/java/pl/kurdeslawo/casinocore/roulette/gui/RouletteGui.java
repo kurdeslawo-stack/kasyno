@@ -111,7 +111,9 @@ public final class RouletteGui {
                 .append(Component.text(session.selectedStake(), NamedTextColor.GOLD))));
         inventory.setItem(CLOSE_SLOT, item(Material.BARRIER,
             Component.text("Zamknij", NamedTextColor.RED), false));
-        inventory.setItem(SPIN_SLOT, spinItem(session));
+        inventory.setItem(SPIN_SLOT, manager.needsReview(player.getUniqueId()) ? item(Material.BARRIER,
+            Component.text("WYMAGANA WERYFIKACJA", NamedTextColor.RED, TextDecoration.BOLD), false,
+            Component.text("Skontaktuj się z administracją", NamedTextColor.YELLOW)) : spinItem(session));
         if (session.phase() == RoulettePhase.SELECTING && session.result() != null) {
             inventory.setItem(LAST_RESULT_SLOT, lastResultItem(session));
         }

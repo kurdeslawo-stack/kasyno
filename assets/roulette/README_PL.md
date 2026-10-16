@@ -13,7 +13,7 @@ a najwyższy punkt wrzeciona na wysokości 1,17 bloku. Przód stołu: +Z.
 - resource_pack/assets/casinocore/models/entity/roulette_table_base.json — stół z nieruchomą misą, bez wirnika i kulki.
 - resource_pack/assets/casinocore/models/entity/roulette_wheel.json — sam wirnik, pivot [8,8,8].
 - resource_pack/assets/casinocore/models/entity/roulette_ball.json — sama kulka, pivot [8,8,8].
-- resource_pack/assets/casinocore/items/*.json — definicje item_model dla Java 26.2.
+- resource_pack/assets/casinocore/items/*.json — definicje item_model dla Java 26.3.
 - blockbench/*.bbmodel — wersja złożona i trzy osobne modele, z osadzonym PNG.
 - preview/*.png — trzy rendery rzeczywistej geometrii oraz powiększony atlas.
 - integration.json — punkty odniesienia i przesunięcia części.
@@ -21,9 +21,9 @@ a najwyższy punkt wrzeciona na wysokości 1,17 bloku. Przód stołu: +Z.
 
 ## Resource pack / szybki podgląd
 
-Paczka jest przygotowana pod **Minecraft Java 26.2** (resource pack format 88.0).
+Paczka jest przygotowana pod **Minecraft Java 26.3** (resource pack format 97.1).
 `pack.mcmeta` używa aktualnych pól `min_format` i `max_format`, obu ustawionych
-na `[88, 0]`. Dla tego nowego formatu nie używa `pack_format` ani
+na `[97, 1]`. Dla tego nowego formatu nie używa `pack_format` ani
 `supported_formats`.
 Na innej wersji połącz katalog assets z docelowym resource packiem i zachowaj
 pack.mcmeta odpowiednie dla wersji klienta. Nie deklarujemy testów w grze.
@@ -31,8 +31,9 @@ Geometria używa standardowych elementów Java; nie wymaga OptiFine ani moda.
 Nazwa katalogu models/entity jest tylko lokalizacją pliku: to model item/block,
 nie format Bedrock ani automatyczny zamiennik geometrii istniejącej encji.
 
-Wgraj zawartość resource_pack albo gotowy CasinoCore_Roulette_ResourcePack_26.2.zip
-do folderu resourcepacks i aktywuj paczkę. Dla Java 26.2:
+Wgraj wspólną paczkę `dist/CasinoCore_ResourcePack_26.3.zip`, zawierającą
+zasoby Roulette i Blackjack, do folderu resourcepacks i aktywuj paczkę.
+Dla Java 26.3:
 
 ```mcfunction
 /give @s minecraft:paper[minecraft:item_model="casinocore:roulette_table"]
@@ -78,5 +79,5 @@ mogą używać niższej gęstości. Filtrowanie podglądu: nearest / pixelated.
 Szczegóły cyfr na kole służą do oglądania z bliska; wynik i wybór stawki powinny
 później być podawane przez UI pluginu. Plansza jest grafiką, nie hitboxem.
 
-Źródło formatu paczki 88.0: https://www.minecraft.net/en-us/article/minecraft-java-edition-26-2
+Źródło formatu paczki 97.1: https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3
 Wszystkie tekstury i geometria zostały stworzone dla tego assetu, bez zewnętrznych materiałów.

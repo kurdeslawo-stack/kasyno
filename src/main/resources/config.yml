@@ -43,3 +43,22 @@ economy:
   provider: vault
   local:
     starting-balance: 0
+
+blackjack:
+  stakes:
+    - 1
+    - 5
+    - 25
+  rules:
+    # false means the dealer stands on soft 17.
+    dealer-hits-soft-17: false
+  payouts:
+    # Blackjack profit ratio. With whole coins, fractional total returns are rounded down.
+    blackjack-profit-numerator: 3
+    blackjack-profit-denominator: 2
+  animation:
+    deal-delay-ticks: 5
+    dealer-delay-ticks: 6
+    result-duration-ticks: 50
+  sounds:
+    enabled: true

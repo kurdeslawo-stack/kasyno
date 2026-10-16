@@ -7,7 +7,7 @@ European wheel: 0..36 exactly once, 18 red / 18 black / 1 green.
 Split models reconstruct the complete model exactly at integration.json offsets.
 Preview is rendered from exported geometry and atlas; no Minecraft runtime verification performed.
 JSON syntax: 9 files parsed successfully.
-26.2 metadata: min_format [88, 0], max_format [88, 0]; legacy fields absent.
+26.3 metadata: min_format [97, 1], max_format [97, 1]; legacy fields absent.
 Namespace and references: all casinocore item models, model targets and textures resolve.
-Resource pack ZIP: CasinoCore_Roulette_ResourcePack_26.2.zip; pack.mcmeta is at ZIP root; archive integrity OK.
+Roulette staging archive: integrity and root layout checked before unified pack assembly.
 Blockbench sources: BASE, WHEEL, BALL and assembled table are present.

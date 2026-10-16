@@ -8,12 +8,12 @@
     <artifactId>casinocore</artifactId>
     <version>1.0.0</version>
     <name>CasinoCore</name>
-    <description>Casino foundation plugin for Paper 26.2</description>
+    <description>Casino foundation plugin for Paper 26.3</description>
 
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <paper.version>26.2.build.123-stable</paper.version>
+        <paper.version>26.3.build.200-stable</paper.version>
         <junit.version>5.14.0</junit.version>
     </properties>
 
@@ -29,6 +29,12 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.24.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>

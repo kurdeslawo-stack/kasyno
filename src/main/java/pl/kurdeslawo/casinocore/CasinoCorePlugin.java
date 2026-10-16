@@ -5,9 +5,16 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import pl.kurdeslawo.casinocore.command.CasinoCommand;
+import pl.kurdeslawo.casinocore.blackjack.BlackjackManager;
+import pl.kurdeslawo.casinocore.blackjack.BlackjackEngine;
+import pl.kurdeslawo.casinocore.blackjack.gui.BlackjackAnimation;
+import pl.kurdeslawo.casinocore.blackjack.gui.BlackjackGui;
+import pl.kurdeslawo.casinocore.blackjack.gui.BlackjackGuiListener;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
 import pl.kurdeslawo.casinocore.economy.LocalEconomyProvider;
 import pl.kurdeslawo.casinocore.economy.VaultEconomyProvider;
+import pl.kurdeslawo.casinocore.economy.RoundJournal;
+import pl.kurdeslawo.casinocore.roulette.InMemoryRouletteHistoryRepository;
 import pl.kurdeslawo.casinocore.roulette.RouletteManager;
 import pl.kurdeslawo.casinocore.roulette.RouletteRandom;
 import pl.kurdeslawo.casinocore.roulette.gui.RouletteAnimation;
@@ -27,20 +34,42 @@ public final class CasinoCorePlugin extends JavaPlugin {
     private RouletteGui rouletteGui;
     private RouletteAnimation rouletteAnimation;
     private RouletteTableInteractionManager interactionManager;
+    private BlackjackManager blackjackManager;
+    private BlackjackGui blackjackGui;
+    private BlackjackAnimation blackjackAnimation;
+    private RoundJournal roundJournal;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        if (!validateRouletteConfiguration() || !initializeEconomy()) {
+        if (!validateConfiguration() || !initializeEconomy()) {
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        try {
+            roundJournal = economyProvider instanceof LocalEconomyProvider ? new RoundJournal()
+                : new RoundJournal(getDataFolder().toPath().resolve("round-journal"));
+            if (economyProvider instanceof VaultEconomyProvider vault) roundJournal.bindProvider("vault/" + vault.providerName());
+        } catch (RuntimeException exception) {
+            getLogger().severe("ERROR: Cannot open durable round journal: " + exception.getMessage());
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
         rouletteManager = new RouletteManager(economyProvider, new RouletteRandom(), stakes(),
             getConfig().getInt("roulette.payouts.outside", 2),
-            getConfig().getInt("roulette.payouts.exact", 12));
+            getConfig().getInt("roulette.payouts.exact", 12), new InMemoryRouletteHistoryRepository(), roundJournal);
         rouletteGui = new RouletteGui(this, rouletteManager, economyProvider);
         rouletteAnimation = new RouletteAnimation(this, rouletteManager, rouletteGui);
+        blackjackManager = new BlackjackManager(economyProvider, blackjackStakes(),
+            getConfig().getInt("blackjack.payouts.blackjack-profit-numerator", 3),
+            getConfig().getInt("blackjack.payouts.blackjack-profit-denominator", 2),
+            getConfig().getBoolean("blackjack.rules.dealer-hits-soft-17", false), roundJournal);
+        blackjackManager.recoverAll(message -> getLogger().severe("RECOVERY: " + message));
+        rouletteManager.recoverAll(message -> getLogger().severe("RECOVERY: " + message));
+        blackjackGui = new BlackjackGui(this, blackjackManager, economyProvider);
+        blackjackAnimation = new BlackjackAnimation(this, blackjackManager, blackjackGui);
         interactionManager = new RouletteTableInteractionManager(this);
         interactionManager.load();
 
@@ -48,6 +77,8 @@ public final class CasinoCorePlugin extends JavaPlugin {
             new RouletteGuiListener(this, rouletteManager, rouletteGui, rouletteAnimation), this);
         getServer().getPluginManager().registerEvents(
             new RouletteInteractionListener(interactionManager, rouletteGui), this);
+        getServer().getPluginManager().registerEvents(
+            new BlackjackGuiListener(this, blackjackManager, blackjackGui, blackjackAnimation), this);
 
         PluginCommand casinoCommand = getCommand("casino");
         if (casinoCommand == null) {
@@ -72,6 +103,11 @@ public final class CasinoCorePlugin extends JavaPlugin {
         if (rouletteAnimation != null) {
             rouletteAnimation.cancelAll();
         }
+        if (blackjackAnimation != null) blackjackAnimation.cancelAll();
+        if (blackjackManager != null) {
+            try { blackjackManager.closeAll(); }
+            catch (RuntimeException exception) { getLogger().severe("ERROR: A pending Blackjack round could not be settled during shutdown: " + exception.getMessage()); }
+        }
         if (rouletteManager != null) {
             try {
                 rouletteManager.settleAll();
@@ -79,11 +115,12 @@ public final class CasinoCorePlugin extends JavaPlugin {
                 getLogger().severe("ERROR: A pending Roulette round could not be settled during shutdown: " + exception.getMessage());
             }
         }
+        if (roundJournal != null) roundJournal.close();
     }
 
     public boolean reloadPluginConfiguration() {
         reloadConfig();
-        if (!validateRouletteConfiguration()) {
+        if (!validateConfiguration()) {
             return false;
         }
         String configuredProvider = configuredEconomyProvider();
@@ -96,6 +133,10 @@ public final class CasinoCorePlugin extends JavaPlugin {
             getConfig().getInt("roulette.payouts.outside", 2),
             getConfig().getInt("roulette.payouts.exact", 12));
         rouletteAnimation.reloadConfiguration();
+        blackjackManager.updateConfiguration(blackjackStakes(),
+            getConfig().getInt("blackjack.payouts.blackjack-profit-numerator", 3),
+            getConfig().getInt("blackjack.payouts.blackjack-profit-denominator", 2),
+            getConfig().getBoolean("blackjack.rules.dealer-hits-soft-17", false));
         interactionManager.updateDimensions();
         return true;
     }
@@ -124,7 +165,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
         return true;
     }
 
-    private boolean validateRouletteConfiguration() {
+    private boolean validateConfiguration() {
         if (getConfig().getInt("roulette.numbers.min", 0) != 0
             || getConfig().getInt("roulette.numbers.max", 12) != 12) {
             getLogger().severe("This Roulette version requires roulette.numbers.min=0 and max=12.");
@@ -182,6 +223,35 @@ public final class CasinoCorePlugin extends JavaPlugin {
                 return false;
             }
         }
+        List<Long> blackjackStakes = blackjackStakes();
+        int blackjackNumerator = getConfig().getInt("blackjack.payouts.blackjack-profit-numerator", 3);
+        int blackjackDenominator = getConfig().getInt("blackjack.payouts.blackjack-profit-denominator", 2);
+        if (blackjackStakes.isEmpty() || blackjackStakes.size() > 3
+            || blackjackStakes.stream().anyMatch(value -> value == null || value <= 0)
+            || blackjackNumerator <= 0 || blackjackDenominator <= 0) {
+            getLogger().severe("Blackjack stakes and payout ratio must be valid.");
+            return false;
+        }
+        long maxBlackjackStake = blackjackStakes.stream().mapToLong(Long::longValue).max().orElseThrow();
+        long maximumBlackjackReturn;
+        try {
+            maximumBlackjackReturn = new BlackjackEngine(blackjackNumerator, blackjackDenominator, false)
+                .maximumReturn(maxBlackjackStake);
+        } catch (ArithmeticException exception) {
+            getLogger().severe("Blackjack stake and payout configuration can overflow a long value.");
+            return false;
+        }
+        if ("vault".equals(configuredEconomyProvider())
+            && maximumBlackjackReturn > MAX_EXACT_VAULT_INTEGER) {
+            getLogger().severe("Vault Blackjack payouts cannot exceed 2^53 coins.");
+            return false;
+        }
+        if (getConfig().getLong("blackjack.animation.deal-delay-ticks", 5) <= 0
+            || getConfig().getLong("blackjack.animation.dealer-delay-ticks", 6) <= 0
+            || getConfig().getLong("blackjack.animation.result-duration-ticks", 50) <= 0) {
+            getLogger().severe("Blackjack animation timings must be positive tick values.");
+            return false;
+        }
         return true;
     }
 
@@ -194,8 +264,13 @@ public final class CasinoCorePlugin extends JavaPlugin {
         return getConfig().getLongList("roulette.stakes");
     }
 
+    private List<Long> blackjackStakes() { return getConfig().getLongList("blackjack.stakes"); }
+
     public EconomyProvider economyProvider() { return economyProvider; }
     public RouletteManager rouletteManager() { return rouletteManager; }
     public RouletteGui rouletteGui() { return rouletteGui; }
     public RouletteTableInteractionManager interactionManager() { return interactionManager; }
+    public BlackjackManager blackjackManager() { return blackjackManager; }
+    public BlackjackGui blackjackGui() { return blackjackGui; }
+    public RoundJournal roundJournal() { return roundJournal; }
 }

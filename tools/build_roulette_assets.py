@@ -2,6 +2,9 @@
 Run with Python 3.12 and Pillow. No external assets or downloads required.
 """
 from pathlib import Path
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 import base64, copy, json, math, uuid, zipfile
 from array import array
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
@@ -18,8 +21,8 @@ for p in (TEX.parent, MODELS, ITEMS, ROOT/'blockbench', ROOT/'preview', DIST):
     p.mkdir(parents=True, exist_ok=True)
 
 SIZE = 512
-TARGET_VERSION = '26.2'
-RESOURCE_PACK_FORMAT = [88, 0]
+TARGET_VERSION = '26.3'
+RESOURCE_PACK_FORMAT = [97, 1]
 RESOURCE_PACK_ZIP = f'CasinoCore_Roulette_ResourcePack_{TARGET_VERSION}.zip'
 atlas = Image.new('RGBA', (SIZE, SIZE), '#192520')
 d = ImageDraw.Draw(atlas)
@@ -396,7 +399,7 @@ render(combined,ROOT/'preview/roulette_table_top.png',az=0,elev=80,scale=27,head
 render(combined,ROOT/'preview/roulette_table_front.png',az=-12,elev=18,scale=27,head='ROULETTE / FRONT')
 atlas.resize((1024,1024),Image.Resampling.NEAREST).save(ROOT/'preview/texture_atlas_2x.png')
 
-metadata={'asset':'roulette_table','target':'Minecraft Java item_display','pack_baseline':'26.2 / resource pack format 88.0',
+metadata={'asset':'roulette_table','target':'Minecraft Java item_display','pack_baseline':'26.3 / resource pack format 97.1',
           'units_per_block':16,'table_size_blocks':[2.75,18.79/16,26.14/16],
           'model_anchor':[8,8,8],'floor_offset_blocks':-.5,
           'front_direction':'+Z','atlas_pixels':[512,512],'surface_texels_per_model_unit':8,
@@ -447,7 +450,7 @@ a najwyższy punkt wrzeciona na wysokości 1,17 bloku. Przód stołu: +Z.
 - resource_pack/assets/casinocore/models/entity/roulette_table_base.json — stół z nieruchomą misą, bez wirnika i kulki.
 - resource_pack/assets/casinocore/models/entity/roulette_wheel.json — sam wirnik, pivot [8,8,8].
 - resource_pack/assets/casinocore/models/entity/roulette_ball.json — sama kulka, pivot [8,8,8].
-- resource_pack/assets/casinocore/items/*.json — definicje item_model dla Java 26.2.
+- resource_pack/assets/casinocore/items/*.json — definicje item_model dla Java 26.3.
 - blockbench/*.bbmodel — wersja złożona i trzy osobne modele, z osadzonym PNG.
 - preview/*.png — trzy rendery rzeczywistej geometrii oraz powiększony atlas.
 - integration.json — punkty odniesienia i przesunięcia części.
@@ -455,9 +458,9 @@ a najwyższy punkt wrzeciona na wysokości 1,17 bloku. Przód stołu: +Z.
 
 ## Resource pack / szybki podgląd
 
-Paczka jest przygotowana pod **Minecraft Java 26.2** (resource pack format 88.0).
+Paczka jest przygotowana pod **Minecraft Java 26.3** (resource pack format 97.1).
 `pack.mcmeta` używa aktualnych pól `min_format` i `max_format`, obu ustawionych
-na `[88, 0]`. Dla tego nowego formatu nie używa `pack_format` ani
+na `[97, 1]`. Dla tego nowego formatu nie używa `pack_format` ani
 `supported_formats`.
 Na innej wersji połącz katalog assets z docelowym resource packiem i zachowaj
 pack.mcmeta odpowiednie dla wersji klienta. Nie deklarujemy testów w grze.
@@ -465,8 +468,9 @@ Geometria używa standardowych elementów Java; nie wymaga OptiFine ani moda.
 Nazwa katalogu models/entity jest tylko lokalizacją pliku: to model item/block,
 nie format Bedrock ani automatyczny zamiennik geometrii istniejącej encji.
 
-Wgraj zawartość resource_pack albo gotowy CasinoCore_Roulette_ResourcePack_26.2.zip
-do folderu resourcepacks i aktywuj paczkę. Dla Java 26.2:
+Wgraj wspólną paczkę `dist/CasinoCore_ResourcePack_26.3.zip`, zawierającą
+zasoby Roulette i Blackjack, do folderu resourcepacks i aktywuj paczkę.
+Dla Java 26.3:
 
 ```mcfunction
 /give @s minecraft:paper[minecraft:item_model="casinocore:roulette_table"]
@@ -512,7 +516,7 @@ mogą używać niższej gęstości. Filtrowanie podglądu: nearest / pixelated.
 Szczegóły cyfr na kole służą do oglądania z bliska; wynik i wybór stawki powinny
 później być podawane przez UI pluginu. Plansza jest grafiką, nie hitboxem.
 
-Źródło formatu paczki 88.0: https://www.minecraft.net/en-us/article/minecraft-java-edition-26-2
+Źródło formatu paczki 97.1: https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3
 Wszystkie tekstury i geometria zostały stworzone dla tego assetu, bez zewnętrznych materiałów.
 '''
 (ROOT/'README_PL.md').write_text(README,encoding='utf-8')
@@ -523,13 +527,13 @@ for old_pack_zip in DIST.glob('CasinoCore_Roulette_ResourcePack_*.zip'):
 with zipfile.ZipFile(DIST/RESOURCE_PACK_ZIP,'w',zipfile.ZIP_DEFLATED) as z:
     for p in sorted(PACK.rglob('*')):
         if p.is_file(): z.write(p,p.relative_to(PACK))
-# Complete 26.2 resource validation: parse every JSON, resolve every model and
+# Complete 26.3 resource validation: parse every JSON, resolve every model and
 # texture reference, verify namespace/layout, and inspect both ZIP structures.
 json_paths=sorted(ROOT.rglob('*.json'))
 for path in json_paths:
     json.loads(path.read_text(encoding='utf-8'))
 pack_meta=json.loads((PACK/'pack.mcmeta').read_text(encoding='utf-8'))['pack']
-assert pack_meta['min_format']==[88,0] and pack_meta['max_format']==[88,0]
+assert pack_meta['min_format']==[97,1] and pack_meta['max_format']==[97,1]
 assert 'pack_format' not in pack_meta and 'supported_formats' not in pack_meta
 assert TEX.is_file() and Image.open(TEX).size==(512,512)
 for item_path in sorted(ITEMS.glob('*.json')):
@@ -556,11 +560,18 @@ with zipfile.ZipFile(DIST/RESOURCE_PACK_ZIP) as z:
         assert f'assets/casinocore/models/entity/{name}.json' in names
 report += [
     f'JSON syntax: {len(json_paths)} files parsed successfully.',
-    '26.2 metadata: min_format [88, 0], max_format [88, 0]; legacy fields absent.',
+    '26.3 metadata: min_format [97, 1], max_format [97, 1]; legacy fields absent.',
     'Namespace and references: all casinocore item models, model targets and textures resolve.',
-    f'Resource pack ZIP: {RESOURCE_PACK_ZIP}; pack.mcmeta is at ZIP root; archive integrity OK.',
+    'Roulette staging archive: integrity and root layout checked before unified pack assembly.',
     'Blockbench sources: BASE, WHEEL, BALL and assembled table are present.',
 ]
 (ROOT/'VALIDATION.txt').write_text('\n'.join(report)+'\n',encoding='utf-8')
 print('\n'.join(report))
 print('Created:',ROOT)
+
+# When the Blackjack generator is present, finish by rebuilding the single
+# distributable CasinoCore pack instead of leaving a Roulette-only ZIP in dist.
+combined_builder = SOURCE_DIR / 'build_blackjack_assets.py'
+if combined_builder.is_file():
+    import runpy
+    runpy.run_path(str(combined_builder), run_name='__main__')

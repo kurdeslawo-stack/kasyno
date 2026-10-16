@@ -1,6 +1,8 @@
 package pl.kurdeslawo.casinocore.roulette;
 
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
+import pl.kurdeslawo.casinocore.economy.RoundJournal;
+import pl.kurdeslawo.casinocore.economy.EconomyTransactionException;
 
 import java.util.Collection;
 import java.util.List;
@@ -14,6 +16,8 @@ public final class RouletteManager {
     private final EconomyProvider economy;
     private final RouletteRandom random;
     private final RouletteHistoryRepository history;
+    private final RoundJournal journal;
+    private final java.util.Set<UUID> recorded = ConcurrentHashMap.newKeySet();
     private final Map<UUID, RouletteSession> sessions = new ConcurrentHashMap<>();
     private volatile List<Long> allowedStakes;
     private volatile RouletteEngine engine;
@@ -26,9 +30,16 @@ public final class RouletteManager {
 
     public RouletteManager(EconomyProvider economy, RouletteRandom random, List<Long> allowedStakes,
                            int outsideMultiplier, int exactMultiplier, RouletteHistoryRepository history) {
+        this(economy, random, allowedStakes, outsideMultiplier, exactMultiplier, history, new RoundJournal());
+    }
+
+    public RouletteManager(EconomyProvider economy, RouletteRandom random, List<Long> allowedStakes,
+                           int outsideMultiplier, int exactMultiplier, RouletteHistoryRepository history,
+                           RoundJournal journal) {
         this.economy = Objects.requireNonNull(economy, "economy");
         this.random = Objects.requireNonNull(random, "random");
         this.history = Objects.requireNonNull(history, "history");
+        this.journal = Objects.requireNonNull(journal);
         updateConfiguration(allowedStakes, outsideMultiplier, exactMultiplier);
     }
 
@@ -54,6 +65,7 @@ public final class RouletteManager {
                 return StartRoundOutcome.failure(session, "A round is already active.");
             }
             long stake = session.selectedStake();
+            if (sessions.get(playerId) != session) return StartRoundOutcome.failure(session, "Session changed");
             if (!allowedStakes.contains(stake)) {
                 return StartRoundOutcome.failure(session, "The selected stake is no longer available.");
             }
@@ -63,12 +75,29 @@ public final class RouletteManager {
             }
             RouletteResult result = random.nextResult();
             long totalReturn = engine.totalReturn(bet, result);
-            if (!economy.has(playerId, stake) || !economy.withdraw(playerId, stake)) {
+            if (!economy.has(playerId, stake)) {
                 return StartRoundOutcome.failure(session, "You do not have enough coins.");
             }
 
-            session.beginSpin(bet, result, totalReturn);
-            return StartRoundOutcome.success(session);
+            RouletteSession round = new RouletteSession(playerId, stake);
+            round.selectBet(bet);
+            round.beginSpin(bet, result, totalReturn);
+            journal.begin(round.roundId(), playerId, "roulette", round.snapshot());
+            sessions.put(playerId, round);
+            try {
+                if (!journal.withdraw(round.roundId(), "stake", stake, economy)) {
+                    journal.cancelUnfunded(round.roundId());
+                    sessions.put(playerId, session);
+                    return StartRoundOutcome.failure(session, "You do not have enough coins.");
+                }
+            } catch (EconomyTransactionException exception) {
+                if (exception.definitelyRejected()) {
+                    journal.cancelUnfunded(round.roundId());
+                    sessions.put(playerId, session);
+                }
+                throw exception;
+            }
+            return StartRoundOutcome.success(round);
         }
     }
 
@@ -78,14 +107,16 @@ public final class RouletteManager {
             return false;
         }
         try {
+            journal.requireFunded(session.roundId());
             RouletteBet bet = session.selectedBet();
             RouletteResult result = session.result();
             long payout = session.expectedPayout();
             if (payout > 0) {
-                economy.deposit(playerId, payout);
+                journal.deposit(session.roundId(), payout, economy);
             }
             session.completeSettlement(payout);
-            history.record(RouletteRoundRecord.from(bet, result, payout));
+            journal.complete(session.roundId(), session.snapshot());
+            recordHistory(session);
             return true;
         } catch (RuntimeException exception) {
             session.failSettlement();
@@ -163,6 +194,38 @@ public final class RouletteManager {
 
     public RoulettePlayerStats playerStats(UUID playerId) {
         return history.stats(playerId);
+    }
+    public boolean needsReview(UUID playerId) { return journal.needsReview(playerId); }
+
+    private void recordHistory(RouletteSession session) {
+        if (recorded.contains(session.roundId())) return;
+        history.record(RouletteRoundRecord.from(session.selectedBet(), session.result(), session.payout()));
+        recorded.add(session.roundId());
+    }
+
+    public void recoverRound(UUID id) {
+        RoundJournal.Entry entry = journal.get(id);
+        if (!entry.game().equals("roulette") || entry.cancelled()) return;
+        if (entry.complete()) {
+            recordHistory(RouletteSession.restore(entry.player(), id, entry.data()));
+            return;
+        }
+        if (entry.needsReview()) throw new IllegalStateException("Roulette round needs review: " + id);
+        var stake = entry.transactions().get("stake");
+        if (stake == null || stake.state() == RoundJournal.State.REJECTED) {
+            journal.cancelUnfunded(id);
+            sessions.remove(entry.player());
+            return;
+        }
+        sessions.put(entry.player(), RouletteSession.restore(entry.player(), id, entry.data()));
+        closeSession(entry.player());
+    }
+
+    public void recoverAll(java.util.function.Consumer<String> errors) {
+        for (RoundJournal.Entry entry : journal.entries("roulette")) {
+            try { recoverRound(entry.id()); }
+            catch (RuntimeException exception) { errors.accept(exception.getMessage()); }
+        }
     }
 
     public record StartRoundOutcome(boolean started, RouletteSession session, String error) {

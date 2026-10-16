@@ -167,6 +167,7 @@ public final class RouletteAnimation {
             }
         } catch (RuntimeException exception) {
             plugin.getLogger().severe("Could not settle Roulette round for " + player.getUniqueId() + ": " + exception.getMessage());
+            gui.render(player, inventory, null);
             player.sendActionBar(Component.text(
                 "Nie udało się rozliczyć rundy. Skontaktuj się z administratorem.", NamedTextColor.RED));
         }

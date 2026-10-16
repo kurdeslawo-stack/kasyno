@@ -1,8 +1,8 @@
 name: CasinoCore
 version: '${project.version}'
 main: pl.kurdeslawo.casinocore.CasinoCorePlugin
-api-version: '26.2'
-description: Casino foundation with a pluggable economy and Roulette assets.
+api-version: '26.3'
+description: Casino plugin with Roulette, Blackjack and a pluggable economy.
 author: kurdeslawo-stack
 website: https://github.com/kurdeslawo-stack/kasyno
 softdepend: [Vault]
@@ -10,7 +10,7 @@ softdepend: [Vault]
 commands:
   casino:
     description: CasinoCore player and administration commands.
-    usage: /casino [reload|balance|coins|roulette]
+    usage: /casino [reload|balance|coins|roulette|blackjack|transactions]
     permission: casinocore.command
 
 permissions:
@@ -23,9 +23,13 @@ permissions:
     children:
       casinocore.roulette.open: true
       casinocore.roulette.manage: true
+      casinocore.blackjack.open: true
   casinocore.roulette.open:
     description: Allows opening the Roulette GUI with /casino roulette open.
     default: false
   casinocore.roulette.manage:
     description: Allows creating and removing Roulette interaction hitboxes.
+    default: false
+  casinocore.blackjack.open:
+    description: Allows opening the Blackjack GUI.
     default: false

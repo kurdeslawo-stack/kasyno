@@ -83,7 +83,7 @@ public final class VaultEconomyProvider implements EconomyProvider {
         if (!response.transactionSuccess()) {
             String reason = response.errorMessage == null || response.errorMessage.isBlank()
                 ? "no reason supplied" : response.errorMessage;
-            throw new EconomyTransactionException("Vault provider '" + providerName() + "' rejected " + operation
+            throw EconomyTransactionException.rejected("Vault provider '" + providerName() + "' rejected " + operation
                 + " of " + amount + " coins for " + playerId + ": " + reason);
         }
     }

@@ -1,7 +1,7 @@
 {
   "asset": "roulette_table",
   "target": "Minecraft Java item_display",
-  "pack_baseline": "26.2 / resource pack format 88.0",
+  "pack_baseline": "26.3 / resource pack format 97.1",
   "units_per_block": 16,
   "table_size_blocks": [
     2.75,

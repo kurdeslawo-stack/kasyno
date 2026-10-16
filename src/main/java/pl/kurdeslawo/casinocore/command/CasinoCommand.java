@@ -38,8 +38,52 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             case "balance" -> balance(sender);
             case "coins" -> coins(sender, args);
             case "roulette" -> roulette(sender, args);
+            case "blackjack" -> blackjack(sender, args);
+            case "transactions" -> transactions(sender, args);
             default -> help(sender);
         };
+    }
+
+    private boolean transactions(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) return true;
+        try {
+            if ((args.length == 2 || args.length == 3) && args[1].equalsIgnoreCase("list")) {
+                int page = args.length == 3 ? Integer.parseInt(args[2]) : 1;
+                if (page < 1) throw new IllegalArgumentException("Page must be positive");
+                var pending = plugin.roundJournal().entries(null).stream().filter(e -> !e.complete()).toList();
+                sender.sendMessage("Pending rounds: " + pending.size() + " | page " + page + "/"
+                    + Math.max(1, (pending.size() + 19) / 20));
+                pending.stream().skip((page - 1L) * 20).limit(20).forEach(e -> sender.sendMessage(e.id() + " " + e.game()
+                    + " player=" + e.player() + " " + e.transactions()));
+            } else if (args.length == 3 && args[1].equalsIgnoreCase("retry")) {
+                java.util.UUID id = java.util.UUID.fromString(args[2]);
+                var entry = plugin.roundJournal().get(id);
+                var payout = entry.transactions().get("payout");
+                if (entry.complete() || entry.needsReview() || payout == null
+                    || payout.state() != pl.kurdeslawo.casinocore.economy.RoundJournal.State.REJECTED) {
+                    throw new IllegalStateException("Only explicitly rejected payouts may be retried");
+                }
+                if (entry.game().equals("blackjack")) plugin.blackjackManager().recoverRound(id);
+                else plugin.rouletteManager().recoverRound(id);
+                sender.sendMessage("Rejected payout retried using its original round.");
+            } else if (args.length >= 6 && args[1].equalsIgnoreCase("resolve")) {
+                java.util.UUID id = java.util.UUID.fromString(args[2]);
+                boolean applied;
+                if (args[4].equalsIgnoreCase("applied")) applied = true;
+                else if (args[4].equalsIgnoreCase("not-applied")) applied = false;
+                else throw new IllegalArgumentException("Use applied or not-applied after checking economy logs");
+                String evidence = sender.getName() + ": " + String.join(" ", java.util.Arrays.copyOfRange(args, 5, args.length));
+                plugin.roundJournal().resolve(id, args[3], applied, evidence);
+                plugin.getLogger().warning("RECONCILIATION: " + id + " " + args[3] + " " + args[4] + " " + evidence);
+                if (plugin.roundJournal().get(id).game().equals("blackjack")) plugin.blackjackManager().recoverRound(id);
+                else plugin.rouletteManager().recoverRound(id);
+                sender.sendMessage("Reconciliation saved. No unknown transaction was automatically replayed.");
+            } else sender.sendMessage("Usage: /casino transactions list [page] | retry <round-id> | resolve <round-id> <stake|double|payout> <applied|not-applied> <evidence from economy logs>");
+        } catch (RuntimeException exception) {
+            sender.sendMessage("Transaction remains protected: " + exception.getMessage());
+            plugin.getLogger().severe("RECONCILIATION: " + exception.getMessage());
+        }
+        return true;
     }
 
     private boolean reload(CommandSender sender) {
@@ -108,6 +152,14 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         };
     }
 
+    private boolean blackjack(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) { sender.sendMessage("Blackjack must be opened by a player."); return true; }
+        if (args.length != 2 || !args[1].equalsIgnoreCase("open")) { sender.sendMessage("Usage: /casino blackjack open"); return true; }
+        if (!requirePermission(sender, "casinocore.blackjack.open")) return true;
+        plugin.blackjackGui().open(player);
+        return true;
+    }
+
     private boolean coins(CommandSender sender, String[] args) {
         if (!requireAdmin(sender)) {
             return true;
@@ -162,7 +214,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private static boolean help(CommandSender sender) {
-        sender.sendMessage("Usage: /casino [reload|balance|coins set|coins add|roulette open|roulette create|roulette remove]");
+        sender.sendMessage("Usage: /casino [reload|balance|coins set|coins add|roulette open|roulette create|roulette remove|blackjack open|transactions list]");
         return true;
     }
 
@@ -179,16 +231,21 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("casinocore.admin")) {
                 commands.add("reload");
                 commands.add("coins");
+                commands.add("transactions");
             }
             if (sender.hasPermission("casinocore.roulette.open")
                 || sender.hasPermission("casinocore.roulette.manage")) {
                 commands.add("roulette");
             }
+            if (sender.hasPermission("casinocore.blackjack.open")) commands.add("blackjack");
             return matching(commands, args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("coins")
             && sender.hasPermission("casinocore.admin")) {
             return matching(List.of("set", "add"), args[1]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("transactions") && sender.hasPermission("casinocore.admin")) {
+            return matching(List.of("list", "resolve", "retry"), args[1]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("roulette")) {
             List<String> rouletteCommands = new ArrayList<>();
@@ -201,6 +258,8 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             }
             return matching(rouletteCommands, args[1]);
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("blackjack")
+            && sender.hasPermission("casinocore.blackjack.open")) return matching(List.of("open"), args[1]);
         if (args.length == 3 && args[0].equalsIgnoreCase("coins")
             && sender.hasPermission("casinocore.admin")) {
             return matching(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[2]);
