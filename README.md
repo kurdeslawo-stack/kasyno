@@ -29,4 +29,4 @@ Gry otworzysz przez `/casino roulette open` i `/casino blackjack open`.
 
 Zmiany zapisują się automatycznie i obowiązują od następnej rundy.
 Blackjack nie ma stałego procentu wygranych: wynik zależy od kart i decyzji gracza.
-Mnożniki wypłat można zmieniać w `config.yml`, a potem użyć `/casino reload`.
+Mnożniki wypłat można zmieniać w `config.yml`, a potem użyj `/casino reload`.
