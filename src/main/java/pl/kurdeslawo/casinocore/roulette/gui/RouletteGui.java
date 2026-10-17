@@ -16,6 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
 import pl.kurdeslawo.casinocore.gui.CasinoGuiIcons;
+import pl.kurdeslawo.casinocore.gui.CasinoHistoryLore;
 import pl.kurdeslawo.casinocore.roulette.RouletteBet;
 import pl.kurdeslawo.casinocore.roulette.RouletteBetType;
 import pl.kurdeslawo.casinocore.roulette.RouletteColor;
@@ -34,7 +35,7 @@ public final class RouletteGui {
     public static final int SPIN_SLOT = 40;
     public static final int CLOSE_SLOT = 53;
     private static final int BALANCE_SLOT = 50;
-    private static final int HISTORY_SLOT = 7;
+    private static final int HISTORY_SLOT = 8;
     private static final int[] NUMBER_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24};
     private static final int[] STAKE_SLOTS = {46, 47, 48};
     private static final Map<Integer, RouletteBetType> OUTSIDE_BETS =
@@ -340,35 +341,18 @@ public final class RouletteGui {
     private void renderPlayerHistory(Inventory inventory, Player player) {
         List<RouletteRoundRecord> rounds = manager.recentRounds(player.getUniqueId());
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("Ostatnie 5 rund • od najnowszej", NamedTextColor.GRAY));
-        lore.add(Component.empty());
         if (rounds.isEmpty()) {
-            lore.add(Component.text("Nie rozegrano jeszcze żadnej rundy.", NamedTextColor.GRAY));
+            lore.add(Component.text("Brak rozegranych rund.", NamedTextColor.GRAY));
         }
-        for (int index = 0; index < Math.min(5, rounds.size()); index++) {
-            RouletteRoundRecord round = rounds.get(index);
-            long net = round.netChange();
-            NamedTextColor color =
-                    net > 0
-                            ? NamedTextColor.GREEN
-                            : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY;
-            lore.add(
-                    Component.text((index + 1) + ". Numer ", NamedTextColor.GRAY)
-                            .append(
-                                    Component.text(
-                                            round.result().winningNumber(),
-                                            resultColor(round.result().color())))
-                            .append(
-                                    Component.text(
-                                            " • " + signed(net) + " coinów",
-                                            color,
-                                            TextDecoration.BOLD)));
-        }
+        rounds.stream()
+                .limit(5)
+                .map(round -> CasinoHistoryLore.entry(round.stake(), round.payout()))
+                .forEach(lore::add);
         inventory.setItem(
                 HISTORY_SLOT,
                 item(
                         Material.WRITABLE_BOOK,
-                        Component.text("HISTORIA", NamedTextColor.GOLD, TextDecoration.BOLD),
+                        Component.text("Historia", NamedTextColor.YELLOW),
                         false,
                         lore));
     }
@@ -451,10 +435,6 @@ public final class RouletteGui {
 
     private static String coinWord(long amount) {
         return amount == 1 ? "coin" : "coinów";
-    }
-
-    private static String signed(long amount) {
-        return amount > 0 ? "+" + amount : Long.toString(amount);
     }
 
     private Component balanceName(Player player) {

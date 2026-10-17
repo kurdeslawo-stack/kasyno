@@ -24,6 +24,7 @@ import pl.kurdeslawo.casinocore.blackjack.BlackjackSession;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSuit;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
 import pl.kurdeslawo.casinocore.gui.CasinoGuiIcons;
+import pl.kurdeslawo.casinocore.gui.CasinoHistoryLore;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -313,32 +314,18 @@ public final class BlackjackGui {
     private void renderHistory(Inventory inventory, Player player) {
         List<BlackjackRoundRecord> rounds = manager.recent(player.getUniqueId());
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("Ostatnie 5 rund • od najnowszej", NamedTextColor.GRAY));
-        lore.add(Component.empty());
-        if (rounds.isEmpty())
-            lore.add(Component.text("Nie rozegrano jeszcze żadnej rundy.", NamedTextColor.GRAY));
-        for (int index = 0; index < Math.min(5, rounds.size()); index++) {
-            BlackjackRoundRecord round = rounds.get(index);
-            long net = round.netChange();
-            NamedTextColor color =
-                    net > 0
-                            ? NamedTextColor.GREEN
-                            : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY;
-            lore.add(
-                    Component.text(
-                                    (index + 1) + ". " + outcomeName(round.outcome()),
-                                    NamedTextColor.GRAY)
-                            .append(
-                                    Component.text(
-                                            " • " + signed(net) + " coinów",
-                                            color,
-                                            TextDecoration.BOLD)));
+        if (rounds.isEmpty()) {
+            lore.add(Component.text("Brak rozegranych rund.", NamedTextColor.GRAY));
         }
+        rounds.stream()
+                .limit(5)
+                .map(round -> CasinoHistoryLore.entry(round.wager(), round.payout()))
+                .forEach(lore::add);
         inventory.setItem(
                 HISTORY,
                 item(
                         Material.WRITABLE_BOOK,
-                        Component.text("HISTORIA", NamedTextColor.GOLD, TextDecoration.BOLD),
+                        Component.text("Historia", NamedTextColor.YELLOW),
                         false,
                         lore.toArray(Component[]::new)));
     }
@@ -423,19 +410,6 @@ public final class BlackjackGui {
                     case SPADES -> "pik";
                 };
         return rankName + " " + suitName;
-    }
-
-    private static String outcomeName(BlackjackOutcome outcome) {
-        return switch (outcome) {
-            case BLACKJACK -> "BLACKJACK";
-            case WIN -> "WYGRANA";
-            case LOSS -> "PRZEGRANA";
-            case PUSH -> "REMIS";
-        };
-    }
-
-    private static String signed(long number) {
-        return number > 0 ? "+" + number : Long.toString(number);
     }
 
     public static int stakeAt(int slot) {

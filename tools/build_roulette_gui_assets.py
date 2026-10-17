@@ -159,6 +159,13 @@ def generate(pack):
     # The custom items carry their own felt backing; no global vanilla GUI texture override.
     for name, image in list(icons.items()):
         backed = background()
+        if name.startswith('stake_'):
+            # Distinct navy tray separates money controls from the green betting felt.
+            active = name.endswith('_selected')
+            backed = Image.new('RGBA', (32, 32), '#263c52' if active else '#111c2d')
+            tray = ImageDraw.Draw(backed)
+            tray.rectangle((0, 0, 31, 31), outline='#ffe1a0' if active else '#967444', width=2)
+            tray.line((2, 29, 29, 29), fill='#8cffb0' if active else '#394b62', width=2)
         backed.alpha_composite(image)
         icons[name] = backed
     for kind in ('felt', 'rail', 'border'):
@@ -182,7 +189,7 @@ def generate(pack):
         image.save(texture)
 
     # Preview against a neutral inventory-like background, with nearest-neighbour pixels.
-    slots = {7: 'stats', 28: 'red_selected', 29: 'black', 30: 'even', 31: 'odd',
+    slots = {8: 'stats', 28: 'red_selected', 29: 'black', 30: 'even', 31: 'odd',
              32: 'low', 33: 'high', 40: 'spin', 46: 'stake_1', 47: 'stake_5_selected',
              48: 'stake_25', 50: 'balance', 53: 'close'}
     slots.update({slot: f'number_{n}' for n, slot in enumerate([10,11,12,13,14,15,16,19,20,21,22,23,24])})
