@@ -6,7 +6,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 /** Shared resource-pack presentation; leaves item names, lore and game state intact. */
 public final class CasinoGuiIcons {
-    private CasinoGuiIcons() { }
+    private CasinoGuiIcons() {}
 
     public static ItemStack apply(ItemStack stack, String icon) {
         ItemMeta meta = stack.getItemMeta();

@@ -3,6 +3,10 @@
 Ruletka i Blackjack dla **Paper 26.3 / Java 25**.
 Gotowy plugin i resource pack: `dist/CasinoCore_TestServer_26.3.zip`.
 
+`src/main` zawiera plugin, `assets/roulette` źródła stołu i ikon,
+`assets/blackjack` karty, a `tools` generatory i pakowanie.
+Pliki robocze powstają w `target/`; gotowe pliki do przekazania są w `dist/`.
+
 ## Instalacja
 
 1. Wgraj `CasinoCore-1.0.0.jar` do `plugins/`.

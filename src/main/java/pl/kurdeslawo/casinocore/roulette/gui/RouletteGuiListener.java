@@ -2,16 +2,18 @@ package pl.kurdeslawo.casinocore.roulette.gui;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import pl.kurdeslawo.casinocore.roulette.RouletteBetType;
 import pl.kurdeslawo.casinocore.roulette.RouletteManager;
 import pl.kurdeslawo.casinocore.roulette.RoulettePhase;
@@ -25,7 +27,11 @@ public final class RouletteGuiListener implements Listener {
     private final RouletteGui gui;
     private final RouletteAnimation animation;
 
-    public RouletteGuiListener(JavaPlugin plugin, RouletteManager manager, RouletteGui gui, RouletteAnimation animation) {
+    public RouletteGuiListener(
+            JavaPlugin plugin,
+            RouletteManager manager,
+            RouletteGui gui,
+            RouletteAnimation animation) {
         this.plugin = plugin;
         this.manager = manager;
         this.gui = gui;
@@ -39,7 +45,8 @@ public final class RouletteGuiListener implements Listener {
         }
         event.setCancelled(true);
         if (event.getClick() != ClickType.LEFT && event.getClick() != ClickType.RIGHT) return;
-        if (!(event.getWhoClicked() instanceof Player player) || !holder.playerId().equals(player.getUniqueId())) {
+        if (!(event.getWhoClicked() instanceof Player player)
+                || !holder.playerId().equals(player.getUniqueId())) {
             return;
         }
         int slot = event.getRawSlot();
@@ -70,19 +77,27 @@ public final class RouletteGuiListener implements Listener {
             try {
                 outcome = manager.startRound(player.getUniqueId());
             } catch (RuntimeException exception) {
-                plugin.getLogger().severe("ERROR: Roulette withdrawal failed for " + player.getUniqueId()
-                    + ": " + exception.getMessage());
+                plugin.getLogger()
+                        .severe(
+                                "ERROR: Roulette withdrawal failed for "
+                                        + player.getUniqueId()
+                                        + ": "
+                                        + exception.getMessage());
                 gui.render(player, holder.getInventory(), null);
-                player.sendActionBar(Component.text(
-                    "Transakcja została wstrzymana. Sprawdź status w menu.", NamedTextColor.RED));
+                player.sendActionBar(
+                        Component.text(
+                                "Transakcja została wstrzymana. Sprawdź status w menu.",
+                                NamedTextColor.RED));
                 return;
             }
             if (!outcome.started()) {
-                String message = outcome.session().selectedBet() == null
-                    ? "Najpierw wybierz zakład."
-                    : !manager.allowedStakes().contains(outcome.session().selectedStake())
-                        ? "Stawki zostały zmienione. Wybierz dostępną stawkę."
-                        : "Nie masz wystarczającej liczby coinów.";
+                String message =
+                        outcome.session().selectedBet() == null
+                                ? "Najpierw wybierz zakład."
+                                : !manager.allowedStakes()
+                                                .contains(outcome.session().selectedStake())
+                                        ? "Stawki zostały zmienione. Wybierz dostępną stawkę."
+                                        : "Nie masz wystarczającej liczby coinów.";
                 player.sendActionBar(Component.text(message, NamedTextColor.RED));
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.45f, 0.8f);
                 return;
@@ -93,7 +108,8 @@ public final class RouletteGuiListener implements Listener {
         }
 
         Integer exactNumber = RouletteGui.numberAt(slot);
-        RouletteBetType type = exactNumber == null ? RouletteGui.outsideBetAt(slot) : RouletteBetType.EXACT_NUMBER;
+        RouletteBetType type =
+                exactNumber == null ? RouletteGui.outsideBetAt(slot) : RouletteBetType.EXACT_NUMBER;
         if (type == null) {
             return;
         }
@@ -116,8 +132,10 @@ public final class RouletteGuiListener implements Listener {
             return;
         }
         RouletteSession session = manager.session(holder.playerId()).orElse(null);
-        if (event.getPlayer() instanceof Player player && session != null
-            && session.phase() == RoulettePhase.SPINNING && animation.finishAfterClose(player)) {
+        if (event.getPlayer() instanceof Player player
+                && session != null
+                && session.phase() == RoulettePhase.SPINNING
+                && animation.finishAfterClose(player)) {
             return;
         }
         animation.cancel(holder.playerId());
@@ -134,7 +152,12 @@ public final class RouletteGuiListener implements Listener {
         try {
             manager.closeSession(playerId);
         } catch (RuntimeException exception) {
-            plugin.getLogger().severe("Could not settle Roulette round for " + playerId + ": " + exception.getMessage());
+            plugin.getLogger()
+                    .severe(
+                            "Could not settle Roulette round for "
+                                    + playerId
+                                    + ": "
+                                    + exception.getMessage());
         }
     }
 }

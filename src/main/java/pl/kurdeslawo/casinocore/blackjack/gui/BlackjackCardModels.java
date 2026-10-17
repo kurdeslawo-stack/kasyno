@@ -1,9 +1,11 @@
 package pl.kurdeslawo.casinocore.blackjack.gui;
 
-import java.util.Locale;
 import org.bukkit.NamespacedKey;
+
 import pl.kurdeslawo.casinocore.blackjack.BlackjackCard;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackRank;
+
+import java.util.Locale;
 
 public final class BlackjackCardModels {
     public static final String CARD_BACK_PATH = "blackjack/cards/card_back";
@@ -19,8 +21,10 @@ public final class BlackjackCardModels {
     }
 
     public static String modelPath(BlackjackCard card) {
-        return "blackjack/cards/" + rankName(card.rank()) + "_"
-            + card.suit().name().toLowerCase(Locale.ROOT);
+        return "blackjack/cards/"
+                + rankName(card.rank())
+                + "_"
+                + card.suit().name().toLowerCase(Locale.ROOT);
     }
 
     private static String rankName(BlackjackRank rank) {

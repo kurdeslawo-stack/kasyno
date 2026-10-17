@@ -14,7 +14,8 @@ public final class InMemoryRouletteHistoryRepository implements RouletteHistoryR
 
     @Override
     public void record(RouletteRoundRecord round) {
-        PlayerHistory history = histories.computeIfAbsent(round.playerId(), ignored -> new PlayerHistory());
+        PlayerHistory history =
+                histories.computeIfAbsent(round.playerId(), ignored -> new PlayerHistory());
         synchronized (history) {
             history.recent.addFirst(round);
             while (history.recent.size() > HISTORY_LIMIT) {
@@ -49,8 +50,12 @@ public final class InMemoryRouletteHistoryRepository implements RouletteHistoryR
             return RoulettePlayerStats.EMPTY;
         }
         synchronized (history) {
-            return new RoulettePlayerStats(history.roundsPlayed, history.roundsWon, history.roundsLost,
-                history.totalStaked, history.totalPayout);
+            return new RoulettePlayerStats(
+                    history.roundsPlayed,
+                    history.roundsWon,
+                    history.roundsLost,
+                    history.totalStaked,
+                    history.totalPayout);
         }
     }
 

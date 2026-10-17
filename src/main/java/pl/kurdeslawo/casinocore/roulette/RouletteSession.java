@@ -1,8 +1,8 @@
 package pl.kurdeslawo.casinocore.roulette;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.Map;
 
 public final class RouletteSession {
     private final UUID playerId;
@@ -30,7 +30,9 @@ public final class RouletteSession {
         }
         selectedStake = stake;
         if (selectedBet != null) {
-            selectedBet = new RouletteBet(playerId, selectedBet.type(), stake, selectedBet.selectedNumber());
+            selectedBet =
+                    new RouletteBet(
+                            playerId, selectedBet.type(), stake, selectedBet.selectedNumber());
         }
     }
 
@@ -42,7 +44,8 @@ public final class RouletteSession {
         selectedBet = Objects.requireNonNull(bet, "bet");
     }
 
-    public synchronized void beginSpin(RouletteBet bet, RouletteResult drawnResult, long expectedPayout) {
+    public synchronized void beginSpin(
+            RouletteBet bet, RouletteResult drawnResult, long expectedPayout) {
         requirePhase(RoulettePhase.SELECTING);
         if (!bet.playerId().equals(playerId) || bet.stake() != selectedStake) {
             throw new IllegalArgumentException("Bet does not match this session");
@@ -99,32 +102,80 @@ public final class RouletteSession {
         }
     }
 
-    public UUID playerId() { return playerId; }
-    public synchronized long selectedStake() { return selectedStake; }
-    public synchronized RouletteBet selectedBet() { return selectedBet; }
-    public synchronized RouletteResult result() { return result; }
-    public synchronized RoulettePhase phase() { return phase; }
-    public synchronized boolean stakeWithdrawn() { return stakeWithdrawn; }
-    public synchronized boolean settled() { return settled; }
-    public synchronized long expectedPayout() { return expectedPayout; }
-    public synchronized long payout() { return payout; }
-    public synchronized long resultStake() { return resultStake; }
-    public synchronized UUID roundId() { return roundId; }
+    public UUID playerId() {
+        return playerId;
+    }
+
+    public synchronized long selectedStake() {
+        return selectedStake;
+    }
+
+    public synchronized RouletteBet selectedBet() {
+        return selectedBet;
+    }
+
+    public synchronized RouletteResult result() {
+        return result;
+    }
+
+    public synchronized RoulettePhase phase() {
+        return phase;
+    }
+
+    public synchronized boolean stakeWithdrawn() {
+        return stakeWithdrawn;
+    }
+
+    public synchronized boolean settled() {
+        return settled;
+    }
+
+    public synchronized long expectedPayout() {
+        return expectedPayout;
+    }
+
+    public synchronized long payout() {
+        return payout;
+    }
+
+    public synchronized long resultStake() {
+        return resultStake;
+    }
+
+    public synchronized UUID roundId() {
+        return roundId;
+    }
 
     public synchronized Map<String, String> snapshot() {
-        return Map.of("stake", Long.toString(selectedStake), "bet", selectedBet.type().name(),
-            "number", selectedBet.selectedNumber() == null ? "" : selectedBet.selectedNumber().toString(),
-            "result", Integer.toString(result.winningNumber()), "expected", Long.toString(expectedPayout),
-            "payout", Long.toString(payout), "settled", Boolean.toString(settled));
+        return Map.of(
+                "stake",
+                Long.toString(selectedStake),
+                "bet",
+                selectedBet.type().name(),
+                "number",
+                selectedBet.selectedNumber() == null ? "" : selectedBet.selectedNumber().toString(),
+                "result",
+                Integer.toString(result.winningNumber()),
+                "expected",
+                Long.toString(expectedPayout),
+                "payout",
+                Long.toString(payout),
+                "settled",
+                Boolean.toString(settled));
     }
 
     public static RouletteSession restore(UUID player, UUID round, Map<String, String> data) {
         RouletteSession s = new RouletteSession(player, Long.parseLong(data.get("stake")));
         Integer number = data.get("number").isEmpty() ? null : Integer.valueOf(data.get("number"));
-        RouletteBet bet = new RouletteBet(player, RouletteBetType.valueOf(data.get("bet")), s.selectedStake, number);
+        RouletteBet bet =
+                new RouletteBet(
+                        player, RouletteBetType.valueOf(data.get("bet")), s.selectedStake, number);
         s.selectBet(bet);
         int winning = Integer.parseInt(data.get("result"));
-        s.beginSpin(bet, new RouletteResult(winning, RouletteEngine.colorOf(winning)), Long.parseLong(data.get("expected")));
+        s.beginSpin(
+                bet,
+                new RouletteResult(winning, RouletteEngine.colorOf(winning)),
+                Long.parseLong(data.get("expected")));
         s.roundId = round;
         if (Boolean.parseBoolean(data.get("settled"))) {
             s.claimSettlement();

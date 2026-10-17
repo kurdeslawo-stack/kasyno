@@ -12,6 +12,7 @@ import zipfile
 from pathlib import Path
 
 from PIL import Image, ImageDraw
+from pixel_art import draw_glyph, glyph_width
 
 
 TOOLS_DIR = Path(__file__).resolve().parent
@@ -19,7 +20,7 @@ REPOSITORY_ROOT = TOOLS_DIR.parent
 BLACKJACK_ROOT = REPOSITORY_ROOT / "assets" / "blackjack"
 GENERATED_ROOT = BLACKJACK_ROOT / "generated"
 ROULETTE_PACK = REPOSITORY_ROOT / "assets" / "roulette" / "resource_pack"
-UNIFIED_PACK = REPOSITORY_ROOT / "assets" / "resource_pack"
+UNIFIED_PACK = REPOSITORY_ROOT / "target" / "resource-pack"
 DIST = REPOSITORY_ROOT / "dist"
 ZIP_PATH = DIST / "CasinoCore_ResourcePack_26.3.zip"
 
@@ -52,24 +53,6 @@ COLORS = {
     "emerald_light": "#1f5a49",
 }
 
-GLYPHS = {
-    "0": ("111", "101", "101", "101", "111"),
-    "1": ("010", "110", "010", "010", "111"),
-    "2": ("111", "001", "111", "100", "111"),
-    "3": ("111", "001", "111", "001", "111"),
-    "4": ("101", "101", "111", "001", "001"),
-    "5": ("111", "100", "111", "001", "111"),
-    "6": ("111", "100", "111", "101", "111"),
-    "7": ("111", "001", "010", "010", "010"),
-    "8": ("111", "101", "111", "101", "111"),
-    "9": ("111", "101", "111", "001", "111"),
-    "A": ("010", "101", "111", "101", "101"),
-    "C": ("111", "100", "100", "100", "111"),
-    "J": ("001", "001", "001", "101", "111"),
-    "K": ("101", "101", "110", "101", "101"),
-    "Q": ("111", "101", "101", "111", "001"),
-}
-
 
 def safe_recreate(directory: Path) -> None:
     resolved = directory.resolve()
@@ -84,29 +67,6 @@ def safe_recreate(directory: Path) -> None:
 def save_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
-def draw_glyph(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, color: str, scale: int = 1) -> None:
-    x, y = xy
-    for character in text:
-        glyph = GLYPHS[character]
-        for row_index, row in enumerate(glyph):
-            for column_index, pixel in enumerate(row):
-                if pixel == "1":
-                    draw.rectangle(
-                        (
-                            x + column_index * scale,
-                            y + row_index * scale,
-                            x + (column_index + 1) * scale - 1,
-                            y + (row_index + 1) * scale - 1,
-                        ),
-                        fill=color,
-                    )
-        x += (len(glyph[0]) + 1) * scale
-
-
-def glyph_width(text: str, scale: int = 1) -> int:
-    return sum((len(GLYPHS[character][0]) + 1) * scale for character in text) - scale
 
 
 def draw_suit(draw: ImageDraw.ImageDraw, suit: str, center: tuple[int, int], color: str, size: int) -> None:

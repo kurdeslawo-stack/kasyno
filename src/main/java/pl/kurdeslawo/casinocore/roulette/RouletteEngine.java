@@ -38,7 +38,8 @@ public final class RouletteEngine {
         if (!wins(bet, result)) {
             return 0L;
         }
-        int multiplier = bet.type() == RouletteBetType.EXACT_NUMBER ? exactMultiplier : outsideMultiplier;
+        int multiplier =
+                bet.type() == RouletteBetType.EXACT_NUMBER ? exactMultiplier : outsideMultiplier;
         return Math.multiplyExact(bet.stake(), multiplier);
     }
 

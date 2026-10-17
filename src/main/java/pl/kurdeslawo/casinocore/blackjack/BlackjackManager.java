@@ -1,5 +1,9 @@
 package pl.kurdeslawo.casinocore.blackjack;
 
+import pl.kurdeslawo.casinocore.economy.EconomyProvider;
+import pl.kurdeslawo.casinocore.economy.EconomyTransactionException;
+import pl.kurdeslawo.casinocore.economy.RoundJournal;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -8,9 +12,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.random.RandomGenerator;
-import pl.kurdeslawo.casinocore.economy.EconomyProvider;
-import pl.kurdeslawo.casinocore.economy.RoundJournal;
-import pl.kurdeslawo.casinocore.economy.EconomyTransactionException;
 
 public final class BlackjackManager {
     private final EconomyProvider economy;
@@ -23,38 +24,67 @@ public final class BlackjackManager {
     private volatile BlackjackEngine engine;
 
     public BlackjackManager(
-        EconomyProvider economy,
-        List<Long> stakes,
-        int blackjackNumerator,
-        int blackjackDenominator,
-        boolean hitSoft17
-    ) {
-        this(economy, stakes, blackjackNumerator, blackjackDenominator, hitSoft17,
-            () -> new BlackjackDeck(RandomGenerator.getDefault()),
-            new InMemoryBlackjackHistoryRepository());
+            EconomyProvider economy,
+            List<Long> stakes,
+            int blackjackNumerator,
+            int blackjackDenominator,
+            boolean hitSoft17) {
+        this(
+                economy,
+                stakes,
+                blackjackNumerator,
+                blackjackDenominator,
+                hitSoft17,
+                () -> new BlackjackDeck(RandomGenerator.getDefault()),
+                new InMemoryBlackjackHistoryRepository());
     }
 
     BlackjackManager(
-        EconomyProvider economy,
-        List<Long> stakes,
-        int blackjackNumerator,
-        int blackjackDenominator,
-        boolean hitSoft17,
-        Supplier<BlackjackDeck> decks,
-        BlackjackHistoryRepository history
-    ) {
-        this(economy, stakes, blackjackNumerator, blackjackDenominator, hitSoft17, decks, history, new RoundJournal());
+            EconomyProvider economy,
+            List<Long> stakes,
+            int blackjackNumerator,
+            int blackjackDenominator,
+            boolean hitSoft17,
+            Supplier<BlackjackDeck> decks,
+            BlackjackHistoryRepository history) {
+        this(
+                economy,
+                stakes,
+                blackjackNumerator,
+                blackjackDenominator,
+                hitSoft17,
+                decks,
+                history,
+                new RoundJournal());
     }
 
-    public BlackjackManager(EconomyProvider economy, List<Long> stakes, int numerator, int denominator,
-                            boolean hitSoft17, RoundJournal journal) {
-        this(economy, stakes, numerator, denominator, hitSoft17,
-            () -> new BlackjackDeck(RandomGenerator.getDefault()), new InMemoryBlackjackHistoryRepository(), journal);
+    public BlackjackManager(
+            EconomyProvider economy,
+            List<Long> stakes,
+            int numerator,
+            int denominator,
+            boolean hitSoft17,
+            RoundJournal journal) {
+        this(
+                economy,
+                stakes,
+                numerator,
+                denominator,
+                hitSoft17,
+                () -> new BlackjackDeck(RandomGenerator.getDefault()),
+                new InMemoryBlackjackHistoryRepository(),
+                journal);
     }
 
-    BlackjackManager(EconomyProvider economy, List<Long> stakes, int blackjackNumerator, int blackjackDenominator,
-                     boolean hitSoft17, Supplier<BlackjackDeck> decks, BlackjackHistoryRepository history,
-                     RoundJournal journal) {
+    BlackjackManager(
+            EconomyProvider economy,
+            List<Long> stakes,
+            int blackjackNumerator,
+            int blackjackDenominator,
+            boolean hitSoft17,
+            Supplier<BlackjackDeck> decks,
+            BlackjackHistoryRepository history,
+            RoundJournal journal) {
         this.economy = Objects.requireNonNull(economy);
         this.decks = Objects.requireNonNull(decks);
         this.history = Objects.requireNonNull(history);
@@ -63,33 +93,45 @@ public final class BlackjackManager {
     }
 
     public BlackjackSession openSession(UUID playerId) {
-        return sessions.computeIfAbsent(playerId, id -> new BlackjackSession(id, stakes.getFirst()));
+        return sessions.computeIfAbsent(
+                playerId, id -> new BlackjackSession(id, stakes.getFirst()));
     }
 
     public Optional<BlackjackSession> session(UUID playerId) {
         return Optional.ofNullable(sessions.get(playerId));
     }
 
-    public boolean dealerHitsSoft17() { return engine.hitSoft17(); }
-    public int blackjackProfitNumerator() { return engine.blackjackNumerator(); }
-    public int blackjackProfitDenominator() { return engine.blackjackDenominator(); }
+    public boolean dealerHitsSoft17() {
+        return engine.hitSoft17();
+    }
+
+    public int blackjackProfitNumerator() {
+        return engine.blackjackNumerator();
+    }
+
+    public int blackjackProfitDenominator() {
+        return engine.blackjackDenominator();
+    }
 
     public void selectStake(UUID playerId, long stake) {
-        if (!stakes.contains(stake)) throw new IllegalArgumentException("Unsupported Blackjack stake");
+        if (!stakes.contains(stake))
+            throw new IllegalArgumentException("Unsupported Blackjack stake");
         openSession(playerId).selectStake(stake);
     }
 
     public StartOutcome start(UUID playerId) {
         BlackjackSession session = openSession(playerId);
         synchronized (session) {
-            if (sessions.get(playerId) != session) return new StartOutcome(false, sessions.get(playerId), "Session changed");
+            if (sessions.get(playerId) != session)
+                return new StartOutcome(false, sessions.get(playerId), "Session changed");
             if (session.phase() != BlackjackPhase.BETTING) {
                 return new StartOutcome(false, session, "Round active");
             }
 
             long stake = session.selectedStake();
             if (!stakes.contains(stake)) {
-                return new StartOutcome(false, session, "The selected stake is no longer available.");
+                return new StartOutcome(
+                        false, session, "The selected stake is no longer available.");
             }
             BlackjackDeck deck = decks.get();
             BlackjackEngine roundEngine = engine;
@@ -153,12 +195,14 @@ public final class BlackjackManager {
     public boolean doubleDown(UUID playerId) {
         BlackjackSession session = require(playerId);
         synchronized (session) {
-            if (session.phase() != BlackjackPhase.PLAYER_TURN || session.playerHand().cards().size() != 2) {
+            if (session.phase() != BlackjackPhase.PLAYER_TURN
+                    || session.playerHand().cards().size() != 2) {
                 return false;
             }
             long extraStake = session.wager();
             journal.requireFunded(session.roundId());
-            if (!economy.has(playerId, extraStake) || !journal.withdraw(session.roundId(), "double", extraStake, economy)) {
+            if (!economy.has(playerId, extraStake)
+                    || !journal.withdraw(session.roundId(), "double", extraStake, economy)) {
                 return false;
             }
             session.doubleWager();
@@ -173,7 +217,8 @@ public final class BlackjackManager {
     public void stand(UUID playerId) {
         BlackjackSession session = require(playerId);
         synchronized (session) {
-            if (session.phase() == BlackjackPhase.RESULT || session.phase() == BlackjackPhase.BETTING) return;
+            if (session.phase() == BlackjackPhase.RESULT
+                    || session.phase() == BlackjackPhase.BETTING) return;
             journal.requireFunded(session.roundId());
             if (session.phase() == BlackjackPhase.SETTLING) {
                 settleLocked(session);
@@ -251,12 +296,21 @@ public final class BlackjackManager {
     public BlackjackStats stats(UUID playerId) {
         return history.stats(playerId);
     }
-    public boolean needsReview(UUID playerId) { return journal.needsReview(playerId); }
+
+    public boolean needsReview(UUID playerId) {
+        return journal.needsReview(playerId);
+    }
 
     private void recordHistory(BlackjackSession session) {
         if (recorded.contains(session.roundId())) return;
-        history.record(session.playerId(), new BlackjackRoundRecord(session.playerHand().value(),
-            session.dealerHand().value(), session.wager(), session.payout(), session.outcome()));
+        history.record(
+                session.playerId(),
+                new BlackjackRoundRecord(
+                        session.playerHand().value(),
+                        session.dealerHand().value(),
+                        session.wager(),
+                        session.payout(),
+                        session.outcome()));
         recorded.add(session.roundId());
     }
 
@@ -267,7 +321,8 @@ public final class BlackjackManager {
             recordHistory(BlackjackSession.restore(entry.player(), id, entry.data()));
             return;
         }
-        if (entry.needsReview()) throw new IllegalStateException("Blackjack round needs review: " + id);
+        if (entry.needsReview())
+            throw new IllegalStateException("Blackjack round needs review: " + id);
         var stake = entry.transactions().get("stake");
         if (stake == null || stake.state() == RoundJournal.State.REJECTED) {
             journal.cancelUnfunded(id);
@@ -277,8 +332,9 @@ public final class BlackjackManager {
         BlackjackSession session = BlackjackSession.restore(entry.player(), id, entry.data());
         sessions.put(entry.player(), session);
         var doubled = entry.transactions().get("double");
-        if (doubled != null && doubled.state() == RoundJournal.State.SUCCESS
-            && session.wager() == session.selectedStake()) {
+        if (doubled != null
+                && doubled.state() == RoundJournal.State.SUCCESS
+                && session.wager() == session.selectedStake()) {
             session.doubleWager();
             session.hit();
             journal.checkpoint(id, session.snapshot());
@@ -290,22 +346,26 @@ public final class BlackjackManager {
 
     public void recoverAll(java.util.function.Consumer<String> errors) {
         for (RoundJournal.Entry entry : journal.entries("blackjack")) {
-            try { recoverRound(entry.id()); }
-            catch (RuntimeException exception) { errors.accept(exception.getMessage()); }
+            try {
+                recoverRound(entry.id());
+            } catch (RuntimeException exception) {
+                errors.accept(exception.getMessage());
+            }
         }
     }
 
     public void updateConfiguration(
-        List<Long> newStakes,
-        int blackjackNumerator,
-        int blackjackDenominator,
-        boolean hitSoft17
-    ) {
-        if (newStakes == null || newStakes.isEmpty()
-            || newStakes.stream().anyMatch(stake -> stake == null || stake <= 0)) {
+            List<Long> newStakes,
+            int blackjackNumerator,
+            int blackjackDenominator,
+            boolean hitSoft17) {
+        if (newStakes == null
+                || newStakes.isEmpty()
+                || newStakes.stream().anyMatch(stake -> stake == null || stake <= 0)) {
             throw new IllegalArgumentException("Blackjack stakes must be positive");
         }
-        BlackjackEngine newEngine = new BlackjackEngine(blackjackNumerator, blackjackDenominator, hitSoft17);
+        BlackjackEngine newEngine =
+                new BlackjackEngine(blackjackNumerator, blackjackDenominator, hitSoft17);
         newEngine.maximumReturn(newStakes.stream().mapToLong(Long::longValue).max().orElseThrow());
         stakes = newStakes.stream().distinct().sorted().toList();
         engine = newEngine;

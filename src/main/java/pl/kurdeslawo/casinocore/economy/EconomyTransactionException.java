@@ -2,6 +2,7 @@ package pl.kurdeslawo.casinocore.economy;
 
 public final class EconomyTransactionException extends RuntimeException {
     private final boolean rejected;
+
     public EconomyTransactionException(String message) {
         super(message);
         rejected = false;
@@ -21,5 +22,7 @@ public final class EconomyTransactionException extends RuntimeException {
         return new EconomyTransactionException(message, true);
     }
 
-    public boolean definitelyRejected() { return rejected; }
+    public boolean definitelyRejected() {
+        return rejected;
+    }
 }

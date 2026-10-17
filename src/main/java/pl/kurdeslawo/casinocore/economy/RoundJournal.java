@@ -20,16 +20,32 @@ import java.util.UUID;
 
 /** Write-ahead round records. Never replay an external call whose outcome is unknown. */
 public final class RoundJournal implements AutoCloseable {
-    public enum State { INTENT, UNKNOWN, SUCCESS, REJECTED }
+    public enum State {
+        INTENT,
+        UNKNOWN,
+        SUCCESS,
+        REJECTED
+    }
+
     public record Transaction(String kind, long amount, State state, String detail) {}
-    public record Entry(UUID id, UUID player, String game, String created, boolean complete,
-                        boolean cancelled, Map<String, String> data, Map<String, Transaction> transactions) {
+
+    public record Entry(
+            UUID id,
+            UUID player,
+            String game,
+            String created,
+            boolean complete,
+            boolean cancelled,
+            Map<String, String> data,
+            Map<String, Transaction> transactions) {
         public Entry {
             data = Map.copyOf(data);
             transactions = Map.copyOf(transactions);
         }
+
         public boolean needsReview() {
-            return transactions.values().stream().anyMatch(t -> t.state == State.UNKNOWN || t.state == State.INTENT);
+            return transactions.values().stream()
+                    .anyMatch(t -> t.state == State.UNKNOWN || t.state == State.INTENT);
         }
     }
 
@@ -41,23 +57,32 @@ public final class RoundJournal implements AutoCloseable {
     private boolean unavailable;
 
     /** Ephemeral development/test journal. Production uses the Path constructor. */
-    public RoundJournal() { directory = null; }
+    public RoundJournal() {
+        directory = null;
+    }
 
     public RoundJournal(Path directory) {
         this.directory = directory.toAbsolutePath().normalize();
         try {
             Files.createDirectories(this.directory);
-            lockChannel = FileChannel.open(this.directory.resolve("journal.lock"),
-                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            lockChannel =
+                    FileChannel.open(
+                            this.directory.resolve("journal.lock"),
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE);
             lock = lockChannel.tryLock();
             if (lock == null) throw new IOException("Journal is already open");
             try (var paths = Files.list(this.directory)) {
-                for (Path path : paths.filter(p -> p.getFileName().toString().endsWith(".round")).sorted().toList()) {
+                for (Path path :
+                        paths.filter(p -> p.getFileName().toString().endsWith(".round"))
+                                .sorted()
+                                .toList()) {
                     Entry entry = decode(Files.readAllBytes(path));
                     if (!path.getFileName().toString().equals(entry.id + ".round")) {
                         throw new IOException("Round filename/id mismatch");
                     }
-                    if (entries.put(entry.id, entry) != null) throw new IOException("Duplicate round id");
+                    if (entries.put(entry.id, entry) != null)
+                        throw new IOException("Duplicate round id");
                     if (!entry.complete && openRounds.putIfAbsent(entry.player, entry.id) != null) {
                         throw new IOException("Multiple unfinished rounds for one player");
                     }
@@ -65,7 +90,8 @@ public final class RoundJournal implements AutoCloseable {
             }
         } catch (IOException | RuntimeException exception) {
             close();
-            throw new IllegalStateException("Cannot open round journal; CasinoCore must stay disabled", exception);
+            throw new IllegalStateException(
+                    "Cannot open round journal; CasinoCore must stay disabled", exception);
         }
     }
 
@@ -73,9 +99,19 @@ public final class RoundJournal implements AutoCloseable {
         checkAvailable();
         if (entries.containsKey(round)) throw new IllegalStateException("Duplicate round " + round);
         if (openRounds.containsKey(player)) {
-            throw new IllegalStateException("Player has an unresolved casino round; contact an administrator");
+            throw new IllegalStateException(
+                    "Player has an unresolved casino round; contact an administrator");
         }
-        save(new Entry(round, player, game, Instant.now().toString(), false, false, data, Map.of()));
+        save(
+                new Entry(
+                        round,
+                        player,
+                        game,
+                        Instant.now().toString(),
+                        false,
+                        false,
+                        data,
+                        Map.of()));
     }
 
     public synchronized void bindProvider(String identity) {
@@ -88,8 +124,11 @@ public final class RoundJournal implements AutoCloseable {
                     throw new IOException("Journal belongs to a different economy provider");
                 }
             } else {
-                if (!entries.isEmpty()) throw new IOException("Journal provider identity is missing");
-                try (FileChannel channel = FileChannel.open(marker, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+                if (!entries.isEmpty())
+                    throw new IOException("Journal provider identity is missing");
+                try (FileChannel channel =
+                        FileChannel.open(
+                                marker, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
                     ByteBuffer bytes = java.nio.charset.StandardCharsets.UTF_8.encode(identity);
                     while (bytes.hasRemaining()) channel.write(bytes);
                     channel.force(true);
@@ -116,8 +155,10 @@ public final class RoundJournal implements AutoCloseable {
 
     public synchronized List<Entry> entries(String game) {
         checkAvailable();
-        return entries.values().stream().filter(e -> game == null || e.game.equals(game))
-            .sorted(Comparator.comparing(Entry::created).thenComparing(e -> e.id.toString())).toList();
+        return entries.values().stream()
+                .filter(e -> game == null || e.game.equals(game))
+                .sorted(Comparator.comparing(Entry::created).thenComparing(e -> e.id.toString()))
+                .toList();
     }
 
     public synchronized void checkpoint(UUID id, Map<String, String> data) {
@@ -126,7 +167,8 @@ public final class RoundJournal implements AutoCloseable {
         save(new Entry(e.id, e.player, e.game, e.created, false, false, data, e.transactions));
     }
 
-    public synchronized boolean withdraw(UUID id, String operation, long amount, EconomyProvider economy) {
+    public synchronized boolean withdraw(
+            UUID id, String operation, long amount, EconomyProvider economy) {
         return transact(id, operation, "withdraw", amount, economy);
     }
 
@@ -134,39 +176,61 @@ public final class RoundJournal implements AutoCloseable {
         transact(id, "payout", "deposit", amount, economy);
     }
 
-    private boolean transact(UUID id, String operation, String kind, long amount, EconomyProvider economy) {
+    private boolean transact(
+            UUID id, String operation, String kind, long amount, EconomyProvider economy) {
         Entry e = get(id);
-        if (e.complete || amount <= 0) throw new IllegalStateException("Invalid journal transaction");
+        if (e.complete || amount <= 0)
+            throw new IllegalStateException("Invalid journal transaction");
         Transaction prior = e.transactions.get(operation);
         if (prior != null) {
-            if (prior.amount != amount || !prior.kind.equals(kind)) throw new IllegalStateException("Transaction mismatch");
+            if (prior.amount != amount || !prior.kind.equals(kind))
+                throw new IllegalStateException("Transaction mismatch");
             if (prior.state == State.SUCCESS) return true;
-            if (prior.state == State.INTENT || prior.state == State.UNKNOWN) throw uncertain(id, operation);
+            if (prior.state == State.INTENT || prior.state == State.UNKNOWN)
+                throw uncertain(id, operation);
         }
         if (e.needsReview()) throw uncertain(id, operation);
-        putTransaction(e, operation, new Transaction(kind, amount, State.INTENT, "Before external call"));
+        putTransaction(
+                e, operation, new Transaction(kind, amount, State.INTENT, "Before external call"));
         boolean applied;
         try {
             if (kind.equals("withdraw")) applied = economy.withdraw(e.player, amount);
-            else { economy.deposit(e.player, amount); applied = true; }
+            else {
+                economy.deposit(e.player, amount);
+                applied = true;
+            }
         } catch (RuntimeException exception) {
-            boolean rejected = exception instanceof EconomyTransactionException transactionException
-                && transactionException.definitelyRejected();
-            putTransaction(get(id), operation, new Transaction(kind, amount,
-                rejected ? State.REJECTED : State.UNKNOWN, exception.toString()));
+            boolean rejected =
+                    exception instanceof EconomyTransactionException transactionException
+                            && transactionException.definitelyRejected();
+            putTransaction(
+                    get(id),
+                    operation,
+                    new Transaction(
+                            kind,
+                            amount,
+                            rejected ? State.REJECTED : State.UNKNOWN,
+                            exception.toString()));
             if (rejected) throw exception;
             throw uncertain(id, operation);
         }
         // If this write fails after an applied call, INTENT remains on disk: no automatic replay.
-        putTransaction(get(id), operation, new Transaction(kind, amount,
-            applied ? State.SUCCESS : State.REJECTED, "Provider returned " + applied));
+        putTransaction(
+                get(id),
+                operation,
+                new Transaction(
+                        kind,
+                        amount,
+                        applied ? State.SUCCESS : State.REJECTED,
+                        "Provider returned " + applied));
         return applied;
     }
 
     public synchronized void requireFunded(UUID id) {
         Entry e = get(id);
         Transaction stake = e.transactions.get("stake");
-        if (e.needsReview() || stake == null || stake.state != State.SUCCESS) throw uncertain(id, "stake/double");
+        if (e.needsReview() || stake == null || stake.state != State.SUCCESS)
+            throw uncertain(id, "stake/double");
     }
 
     public synchronized void complete(UUID id, Map<String, String> data) {
@@ -196,28 +260,55 @@ public final class RoundJournal implements AutoCloseable {
         if (e.complete || t == null || (t.state != State.INTENT && t.state != State.UNKNOWN)) {
             throw new IllegalStateException("Only an unresolved transaction can be reconciled");
         }
-        if (evidence == null || evidence.isBlank()) throw new IllegalArgumentException("Evidence is required");
-        putTransaction(e, operation, new Transaction(t.kind, t.amount,
-            applied ? State.SUCCESS : State.REJECTED, Instant.now() + " " + evidence));
+        if (evidence == null || evidence.isBlank())
+            throw new IllegalArgumentException("Evidence is required");
+        putTransaction(
+                e,
+                operation,
+                new Transaction(
+                        t.kind,
+                        t.amount,
+                        applied ? State.SUCCESS : State.REJECTED,
+                        Instant.now() + " " + evidence));
     }
 
     private void putTransaction(Entry e, String operation, Transaction t) {
-        if (!operation.matches("stake|double|payout")) throw new IllegalArgumentException("Unknown operation");
+        if (!operation.matches("stake|double|payout"))
+            throw new IllegalArgumentException("Unknown operation");
         Map<String, Transaction> transactions = new LinkedHashMap<>(e.transactions);
         Transaction previous = transactions.get(operation);
-        String detail = (previous == null ? "" : previous.detail + "\n")
-            + Instant.now() + " " + t.state + " " + t.detail;
+        String detail =
+                (previous == null ? "" : previous.detail + "\n")
+                        + Instant.now()
+                        + " "
+                        + t.state
+                        + " "
+                        + t.detail;
         transactions.put(operation, new Transaction(t.kind, t.amount, t.state, detail));
-        save(new Entry(e.id, e.player, e.game, e.created, e.complete, e.cancelled, e.data, transactions));
+        save(
+                new Entry(
+                        e.id,
+                        e.player,
+                        e.game,
+                        e.created,
+                        e.complete,
+                        e.cancelled,
+                        e.data,
+                        transactions));
     }
 
     private IllegalStateException uncertain(UUID id, String operation) {
-        return new IllegalStateException("Transaction requires administrator review: round=" + id
-            + " operation=" + operation + "; DO NOT retry money transfers blindly");
+        return new IllegalStateException(
+                "Transaction requires administrator review: round="
+                        + id
+                        + " operation="
+                        + operation
+                        + "; DO NOT retry money transfers blindly");
     }
 
     private void checkAvailable() {
-        if (unavailable) throw new IllegalStateException("Round journal unavailable; all transactions blocked");
+        if (unavailable)
+            throw new IllegalStateException("Round journal unavailable; all transactions blocked");
     }
 
     private void save(Entry entry) {
@@ -227,16 +318,25 @@ public final class RoundJournal implements AutoCloseable {
             Path temporary = directory.resolve(entry.id + ".tmp");
             try {
                 byte[] encoded = encode(entry);
-                try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+                try (FileChannel channel =
+                        FileChannel.open(
+                                temporary,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.TRUNCATE_EXISTING,
+                                StandardOpenOption.WRITE)) {
                     ByteBuffer bytes = ByteBuffer.wrap(encoded);
                     while (bytes.hasRemaining()) channel.write(bytes);
                     channel.force(true);
                 }
-                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(
+                        temporary,
+                        target,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException exception) {
                 unavailable = true;
-                throw new IllegalStateException("Cannot persist round " + entry.id + "; transactions blocked", exception);
+                throw new IllegalStateException(
+                        "Cannot persist round " + entry.id + "; transactions blocked", exception);
             }
         }
         entries.put(entry.id, entry);
@@ -254,17 +354,20 @@ public final class RoundJournal implements AutoCloseable {
         p.setProperty("complete", Boolean.toString(e.complete));
         p.setProperty("cancelled", Boolean.toString(e.cancelled));
         e.data.forEach((key, value) -> p.setProperty("data." + key, value));
-        e.transactions.forEach((operation, t) -> {
-            String prefix = "tx." + operation + ".";
-            p.setProperty(prefix + "kind", t.kind);
-            p.setProperty(prefix + "amount", Long.toString(t.amount));
-            p.setProperty(prefix + "state", t.state.name());
-            p.setProperty(prefix + "detail", t.detail);
-        });
+        e.transactions.forEach(
+                (operation, t) -> {
+                    String prefix = "tx." + operation + ".";
+                    p.setProperty(prefix + "kind", t.kind);
+                    p.setProperty(prefix + "amount", Long.toString(t.amount));
+                    p.setProperty(prefix + "state", t.state.name());
+                    p.setProperty(prefix + "detail", t.detail);
+                });
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         p.store(out, "CasinoCore durable round journal; do not edit while server is running");
         byte[] payload = out.toByteArray();
-        byte[] header = ("#sha256=" + checksum(payload) + "\n").getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] header =
+                ("#sha256=" + checksum(payload) + "\n")
+                        .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         ByteArrayOutputStream framed = new ByteArrayOutputStream();
         framed.write(header);
         framed.write(payload);
@@ -273,14 +376,20 @@ public final class RoundJournal implements AutoCloseable {
 
     private static Entry decode(byte[] bytes) throws IOException {
         int separator = -1;
-        for (int i = 0; i < bytes.length; i++) if (bytes[i] == '\n') { separator = i; break; }
+        for (int i = 0; i < bytes.length; i++)
+            if (bytes[i] == '\n') {
+                separator = i;
+                break;
+            }
         if (separator < 0) throw new IOException("Missing round checksum");
         String header = new String(bytes, 0, separator, java.nio.charset.StandardCharsets.US_ASCII);
         byte[] payload = java.util.Arrays.copyOfRange(bytes, separator + 1, bytes.length);
-        if (!header.equals("#sha256=" + checksum(payload))) throw new IOException("Round checksum mismatch");
+        if (!header.equals("#sha256=" + checksum(payload)))
+            throw new IOException("Round checksum mismatch");
         Properties p = new Properties();
         p.load(new ByteArrayInputStream(payload));
-        if (!"1".equals(p.getProperty("schema"))) throw new IOException("Unsupported journal schema");
+        if (!"1".equals(p.getProperty("schema")))
+            throw new IOException("Unsupported journal schema");
         Map<String, String> data = new LinkedHashMap<>();
         for (String key : p.stringPropertyNames()) {
             if (key.startsWith("data.")) data.put(key.substring(5), p.getProperty(key));
@@ -291,21 +400,34 @@ public final class RoundJournal implements AutoCloseable {
             if (p.containsKey(prefix + "state")) {
                 long amount = Long.parseLong(p.getProperty(prefix + "amount"));
                 String kind = p.getProperty(prefix + "kind");
-                if (amount <= 0 || !List.of("deposit", "withdraw").contains(kind)) throw new IOException("Invalid transaction");
-                transactions.put(operation, new Transaction(kind, amount,
-                    State.valueOf(p.getProperty(prefix + "state")), p.getProperty(prefix + "detail", "")));
+                if (amount <= 0 || !List.of("deposit", "withdraw").contains(kind))
+                    throw new IOException("Invalid transaction");
+                transactions.put(
+                        operation,
+                        new Transaction(
+                                kind,
+                                amount,
+                                State.valueOf(p.getProperty(prefix + "state")),
+                                p.getProperty(prefix + "detail", "")));
             }
         }
         String game = p.getProperty("game");
         if (!List.of("blackjack", "roulette").contains(game)) throw new IOException("Unknown game");
-        return new Entry(UUID.fromString(p.getProperty("id")), UUID.fromString(p.getProperty("player")), game,
-            p.getProperty("created"), Boolean.parseBoolean(p.getProperty("complete")),
-            Boolean.parseBoolean(p.getProperty("cancelled")), data, transactions);
+        return new Entry(
+                UUID.fromString(p.getProperty("id")),
+                UUID.fromString(p.getProperty("player")),
+                game,
+                p.getProperty("created"),
+                Boolean.parseBoolean(p.getProperty("complete")),
+                Boolean.parseBoolean(p.getProperty("cancelled")),
+                data,
+                transactions);
     }
 
     private static String checksum(byte[] bytes) {
         try {
-            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+            return java.util.HexFormat.of()
+                    .formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (java.security.NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 unavailable", exception);
         }
@@ -314,9 +436,15 @@ public final class RoundJournal implements AutoCloseable {
     @Override
     public synchronized void close() {
         unavailable = true;
-        try { if (lock != null && lock.isValid()) lock.release(); }
-        catch (IOException ignored) { /* channel close releases the lock as well */ }
-        try { if (lockChannel != null) lockChannel.close(); }
-        catch (IOException ignored) { /* no transaction may run after close */ }
+        try {
+            if (lock != null && lock.isValid()) lock.release();
+        } catch (IOException ignored) {
+            /* channel close releases the lock as well */
+        }
+        try {
+            if (lockChannel != null) lockChannel.close();
+        } catch (IOException ignored) {
+            /* no transaction may run after close */
+        }
     }
 }

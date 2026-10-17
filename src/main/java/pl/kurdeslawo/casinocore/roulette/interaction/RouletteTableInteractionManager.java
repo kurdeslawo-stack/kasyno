@@ -42,15 +42,23 @@ public final class RouletteTableInteractionManager {
             String worldName = section.getString(key + ".world");
             World world = worldName == null ? null : Bukkit.getWorld(worldName);
             if (world == null) {
-                plugin.getLogger().warning("Skipping Roulette hitbox " + key + ": world is not loaded.");
+                plugin.getLogger()
+                        .warning("Skipping Roulette hitbox " + key + ": world is not loaded.");
                 continue;
             }
             try {
                 UUID entityId = UUID.fromString(key);
-                Location location = new Location(world, section.getDouble(key + ".x"), section.getDouble(key + ".y"),
-                    section.getDouble(key + ".z"), (float) section.getDouble(key + ".yaw"), 0.0f);
+                Location location =
+                        new Location(
+                                world,
+                                section.getDouble(key + ".x"),
+                                section.getDouble(key + ".y"),
+                                section.getDouble(key + ".z"),
+                                (float) section.getDouble(key + ".yaw"),
+                                0.0f);
                 location.getChunk().load();
-                Interaction interaction = findInteraction(world, entityId).orElseGet(() -> spawn(location));
+                Interaction interaction =
+                        findInteraction(world, entityId).orElseGet(() -> spawn(location));
                 configure(interaction);
                 tables.add(new TableRecord(interaction.getUniqueId(), location));
             } catch (IllegalArgumentException exception) {
@@ -69,10 +77,13 @@ public final class RouletteTableInteractionManager {
 
     public Optional<Location> removeNearest(Location origin, double radius) {
         double radiusSquared = radius * radius;
-        Optional<TableRecord> nearest = tables.stream()
-            .filter(table -> table.location().getWorld().equals(origin.getWorld()))
-            .filter(table -> table.location().distanceSquared(origin) <= radiusSquared)
-            .min(Comparator.comparingDouble(table -> table.location().distanceSquared(origin)));
+        Optional<TableRecord> nearest =
+                tables.stream()
+                        .filter(table -> table.location().getWorld().equals(origin.getWorld()))
+                        .filter(table -> table.location().distanceSquared(origin) <= radiusSquared)
+                        .min(
+                                Comparator.comparingDouble(
+                                        table -> table.location().distanceSquared(origin)));
         if (nearest.isEmpty()) {
             return Optional.empty();
         }
@@ -85,12 +96,13 @@ public final class RouletteTableInteractionManager {
 
     public boolean isRouletteInteraction(Entity entity) {
         return entity instanceof Interaction
-            && entity.getPersistentDataContainer().has(markerKey, PersistentDataType.BYTE);
+                && entity.getPersistentDataContainer().has(markerKey, PersistentDataType.BYTE);
     }
 
     public void updateDimensions() {
         for (TableRecord table : tables) {
-            findInteraction(table.location().getWorld(), table.entityId()).ifPresent(this::configure);
+            findInteraction(table.location().getWorld(), table.entityId())
+                    .ifPresent(this::configure);
         }
     }
 
@@ -99,8 +111,10 @@ public final class RouletteTableInteractionManager {
     }
 
     private void configure(Interaction interaction) {
-        interaction.setInteractionWidth((float) plugin.getConfig().getDouble("roulette.interaction.width", 2.75));
-        interaction.setInteractionHeight((float) plugin.getConfig().getDouble("roulette.interaction.height", 1.5));
+        interaction.setInteractionWidth(
+                (float) plugin.getConfig().getDouble("roulette.interaction.width", 2.75));
+        interaction.setInteractionHeight(
+                (float) plugin.getConfig().getDouble("roulette.interaction.height", 1.5));
         interaction.setResponsive(true);
         interaction.addScoreboardTag("casinocore_roulette_interaction");
         interaction.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
@@ -108,7 +122,9 @@ public final class RouletteTableInteractionManager {
 
     private static Optional<Interaction> findInteraction(World world, UUID entityId) {
         Entity entity = world.getEntity(entityId);
-        return entity instanceof Interaction interaction ? Optional.of(interaction) : Optional.empty();
+        return entity instanceof Interaction interaction
+                ? Optional.of(interaction)
+                : Optional.empty();
     }
 
     private void save() {
@@ -125,7 +141,8 @@ public final class RouletteTableInteractionManager {
         try {
             storage.save(storageFile);
         } catch (IOException exception) {
-            throw new IllegalStateException("Could not save Roulette interaction tables", exception);
+            throw new IllegalStateException(
+                    "Could not save Roulette interaction tables", exception);
         }
     }
 

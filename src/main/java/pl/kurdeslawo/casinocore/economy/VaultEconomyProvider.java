@@ -2,6 +2,7 @@ package pl.kurdeslawo.casinocore.economy;
 
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
+
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 
@@ -25,8 +26,12 @@ public final class VaultEconomyProvider implements EconomyProvider {
             throw failure("balance lookup", playerId, exception);
         }
         if (!Double.isFinite(balance)) {
-            throw new EconomyTransactionException("Vault provider '" + providerName()
-                + "' returned a non-finite balance for " + playerId + ".");
+            throw new EconomyTransactionException(
+                    "Vault provider '"
+                            + providerName()
+                            + "' returned a non-finite balance for "
+                            + playerId
+                            + ".");
         }
         if (balance <= 0) {
             return 0L;
@@ -75,22 +80,51 @@ public final class VaultEconomyProvider implements EconomyProvider {
         }
     }
 
-    private void requireSuccess(EconomyResponse response, String operation, UUID playerId, long amount) {
+    private void requireSuccess(
+            EconomyResponse response, String operation, UUID playerId, long amount) {
         if (response == null) {
-            throw new EconomyTransactionException("Vault provider '" + providerName() + "' returned no response for "
-                + operation + " of " + amount + " coins for " + playerId + ".");
+            throw new EconomyTransactionException(
+                    "Vault provider '"
+                            + providerName()
+                            + "' returned no response for "
+                            + operation
+                            + " of "
+                            + amount
+                            + " coins for "
+                            + playerId
+                            + ".");
         }
         if (!response.transactionSuccess()) {
-            String reason = response.errorMessage == null || response.errorMessage.isBlank()
-                ? "no reason supplied" : response.errorMessage;
-            throw EconomyTransactionException.rejected("Vault provider '" + providerName() + "' rejected " + operation
-                + " of " + amount + " coins for " + playerId + ": " + reason);
+            String reason =
+                    response.errorMessage == null || response.errorMessage.isBlank()
+                            ? "no reason supplied"
+                            : response.errorMessage;
+            throw EconomyTransactionException.rejected(
+                    "Vault provider '"
+                            + providerName()
+                            + "' rejected "
+                            + operation
+                            + " of "
+                            + amount
+                            + " coins for "
+                            + playerId
+                            + ": "
+                            + reason);
         }
     }
 
-    private EconomyTransactionException failure(String operation, UUID playerId, RuntimeException cause) {
-        return new EconomyTransactionException("Vault provider '" + providerName() + "' failed during " + operation
-            + " for " + playerId + ": " + cause.getMessage(), cause);
+    private EconomyTransactionException failure(
+            String operation, UUID playerId, RuntimeException cause) {
+        return new EconomyTransactionException(
+                "Vault provider '"
+                        + providerName()
+                        + "' failed during "
+                        + operation
+                        + " for "
+                        + playerId
+                        + ": "
+                        + cause.getMessage(),
+                cause);
     }
 
     private static OfflinePlayer player(UUID playerId) {

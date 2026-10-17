@@ -3,8 +3,13 @@ package pl.kurdeslawo.casinocore.roulette;
 import java.util.Objects;
 import java.util.UUID;
 
-public record RouletteRoundRecord(UUID playerId, RouletteResult result, RouletteBetType betType,
-                                  Integer selectedNumber, long stake, long payout) {
+public record RouletteRoundRecord(
+        UUID playerId,
+        RouletteResult result,
+        RouletteBetType betType,
+        Integer selectedNumber,
+        long stake,
+        long payout) {
     public RouletteRoundRecord {
         Objects.requireNonNull(playerId, "playerId");
         Objects.requireNonNull(result, "result");
@@ -16,7 +21,8 @@ public record RouletteRoundRecord(UUID playerId, RouletteResult result, Roulette
     }
 
     public static RouletteRoundRecord from(RouletteBet bet, RouletteResult result, long payout) {
-        return new RouletteRoundRecord(bet.playerId(), result, bet.type(), bet.selectedNumber(), bet.stake(), payout);
+        return new RouletteRoundRecord(
+                bet.playerId(), result, bet.type(), bet.selectedNumber(), bet.stake(), payout);
     }
 
     public boolean won() {

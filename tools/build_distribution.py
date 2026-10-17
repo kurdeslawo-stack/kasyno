@@ -2,10 +2,15 @@
 from pathlib import Path
 import shutil
 import zipfile
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / 'dist'
-JAR_NAME = 'CasinoCore-1.0.0.jar'
+project = ElementTree.parse(ROOT / 'pom.xml').getroot()
+VERSION = project.findtext('{http://maven.apache.org/POM/4.0.0}version')
+if not VERSION:
+    raise ValueError('Project version is missing from pom.xml')
+JAR_NAME = f'CasinoCore-{VERSION}.jar'
 PACK_NAME = 'CasinoCore_ResourcePack_26.3.zip'
 ARCHIVE = DIST / 'CasinoCore_TestServer_26.3.zip'
 

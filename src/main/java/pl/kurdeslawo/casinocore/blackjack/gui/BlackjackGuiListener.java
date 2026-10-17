@@ -1,21 +1,24 @@
 package pl.kurdeslawo.casinocore.blackjack.gui;
 
-import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import pl.kurdeslawo.casinocore.blackjack.BlackjackManager;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackPhase;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSession;
+
+import java.util.UUID;
 
 public final class BlackjackGuiListener implements Listener {
     private final JavaPlugin plugin;
@@ -24,11 +27,10 @@ public final class BlackjackGuiListener implements Listener {
     private final BlackjackAnimation animation;
 
     public BlackjackGuiListener(
-        JavaPlugin plugin,
-        BlackjackManager manager,
-        BlackjackGui gui,
-        BlackjackAnimation animation
-    ) {
+            JavaPlugin plugin,
+            BlackjackManager manager,
+            BlackjackGui gui,
+            BlackjackAnimation animation) {
         this.plugin = plugin;
         this.manager = manager;
         this.gui = gui;
@@ -37,11 +39,12 @@ public final class BlackjackGuiListener implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof BlackjackGuiHolder holder)) return;
+        if (!(event.getView().getTopInventory().getHolder() instanceof BlackjackGuiHolder holder))
+            return;
         event.setCancelled(true);
         if (event.getClick() != ClickType.LEFT && event.getClick() != ClickType.RIGHT) return;
         if (!(event.getWhoClicked() instanceof Player player)
-            || !holder.playerId().equals(player.getUniqueId())) return;
+                || !holder.playerId().equals(player.getUniqueId())) return;
 
         int slot = event.getRawSlot();
         if (slot < 0 || slot >= BlackjackGui.SIZE) return;
@@ -66,9 +69,16 @@ public final class BlackjackGuiListener implements Listener {
             }
         } catch (RuntimeException exception) {
             gui.render(player, holder.getInventory());
-            plugin.getLogger().severe("Blackjack action failed for " + player.getUniqueId()
-                + ": " + exception.getMessage());
-            player.sendActionBar(Component.text("Nie udało się wykonać akcji. Sprawdź status w menu.", NamedTextColor.RED));
+            plugin.getLogger()
+                    .severe(
+                            "Blackjack action failed for "
+                                    + player.getUniqueId()
+                                    + ": "
+                                    + exception.getMessage());
+            player.sendActionBar(
+                    Component.text(
+                            "Nie udało się wykonać akcji. Sprawdź status w menu.",
+                            NamedTextColor.RED));
         }
     }
 
@@ -83,8 +93,13 @@ public final class BlackjackGuiListener implements Listener {
 
         BlackjackManager.StartOutcome outcome = manager.start(player.getUniqueId());
         if (!outcome.started()) {
-            String message = manager.stakes().contains(manager.openSession(player.getUniqueId()).selectedStake())
-                ? "Nie masz wystarczającej liczby coinów." : "Wybierz dostępną stawkę.";
+            String message =
+                    manager.stakes()
+                                    .contains(
+                                            manager.openSession(player.getUniqueId())
+                                                    .selectedStake())
+                            ? "Nie masz wystarczającej liczby coinów."
+                            : "Wybierz dostępną stawkę.";
             player.sendActionBar(Component.text(message, NamedTextColor.RED));
             return;
         }
@@ -93,17 +108,14 @@ public final class BlackjackGuiListener implements Listener {
     }
 
     private void handlePlayerTurnClick(
-        Player player,
-        BlackjackGuiHolder holder,
-        BlackjackSession session,
-        int slot
-    ) {
+            Player player, BlackjackGuiHolder holder, BlackjackSession session, int slot) {
         UUID playerId = player.getUniqueId();
         if (slot == BlackjackGui.HIT) {
             manager.hit(playerId);
             player.playSound(player.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.1f);
             if (session.phase() == BlackjackPhase.RESULT) {
-                if (session.playerHand().isBust()) animation.showResult(player, holder.getInventory());
+                if (session.playerHand().isBust())
+                    animation.showResult(player, holder.getInventory());
                 else animation.dealerReveal(player, holder.getInventory());
             } else {
                 gui.render(player, holder.getInventory());
@@ -113,7 +125,8 @@ public final class BlackjackGuiListener implements Listener {
             animation.dealerReveal(player, holder.getInventory());
         } else if (slot == BlackjackGui.DOUBLE) {
             if (!manager.doubleDown(playerId)) {
-                player.sendActionBar(Component.text("Nie możesz teraz podwoić stawki.", NamedTextColor.RED));
+                player.sendActionBar(
+                        Component.text("Nie możesz teraz podwoić stawki.", NamedTextColor.RED));
             } else {
                 animation.dealerReveal(player, holder.getInventory());
             }
@@ -145,8 +158,12 @@ public final class BlackjackGuiListener implements Listener {
         try {
             manager.closeSession(playerId);
         } catch (RuntimeException exception) {
-            plugin.getLogger().severe("Could not settle Blackjack round for " + playerId
-                + ": " + exception.getMessage());
+            plugin.getLogger()
+                    .severe(
+                            "Could not settle Blackjack round for "
+                                    + playerId
+                                    + ": "
+                                    + exception.getMessage());
         }
     }
 }

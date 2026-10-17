@@ -1,18 +1,20 @@
 package pl.kurdeslawo.casinocore.blackjack.gui;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+
 import pl.kurdeslawo.casinocore.blackjack.BlackjackManager;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackOutcome;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackPhase;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSession;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public final class BlackjackAnimation {
     private final JavaPlugin plugin;
@@ -33,41 +35,58 @@ public final class BlackjackAnimation {
 
     private void dealStep(Player player, Inventory inventory, int step) {
         long delay = plugin.getConfig().getLong("blackjack.animation.deal-delay-ticks", 5);
-        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            BlackjackSession session = manager.session(player.getUniqueId()).orElse(null);
-            if (session == null || session.phase() != BlackjackPhase.DEALING || !viewing(player, inventory)) {
-                tasks.remove(player.getUniqueId());
-                return;
-            }
+        BukkitTask task =
+                plugin.getServer()
+                        .getScheduler()
+                        .runTaskLater(
+                                plugin,
+                                () -> {
+                                    BlackjackSession session =
+                                            manager.session(player.getUniqueId()).orElse(null);
+                                    if (session == null
+                                            || session.phase() != BlackjackPhase.DEALING
+                                            || !viewing(player, inventory)) {
+                                        tasks.remove(player.getUniqueId());
+                                        return;
+                                    }
 
-            int playerVisible = switch (step) {
-                case 0, 1 -> 1;
-                default -> 2;
-            };
-            int dealerVisible = switch (step) {
-                case 0 -> 0;
-                case 1, 2 -> 1;
-                default -> 2;
-            };
-            gui.render(player, inventory, playerVisible, dealerVisible, true);
-            sound(player, () -> Sound.ITEM_BOOK_PAGE_TURN, 0.45f, 1.15f);
-            if (step < 3) {
-                dealStep(player, inventory, step + 1);
-                return;
-            }
+                                    int playerVisible =
+                                            switch (step) {
+                                                case 0, 1 -> 1;
+                                                default -> 2;
+                                            };
+                                    int dealerVisible =
+                                            switch (step) {
+                                                case 0 -> 0;
+                                                case 1, 2 -> 1;
+                                                default -> 2;
+                                            };
+                                    gui.render(
+                                            player, inventory, playerVisible, dealerVisible, true);
+                                    sound(player, () -> Sound.ITEM_BOOK_PAGE_TURN, 0.45f, 1.15f);
+                                    if (step < 3) {
+                                        dealStep(player, inventory, step + 1);
+                                        return;
+                                    }
 
-            tasks.remove(player.getUniqueId());
-            try {
-                manager.finishDeal(player.getUniqueId());
-            } catch (RuntimeException exception) {
-                plugin.getLogger().severe("Blackjack settlement failed for " + player.getUniqueId()
-                    + ": " + exception.getMessage());
-                gui.render(player, inventory);
-                return;
-            }
-            if (session.phase() == BlackjackPhase.RESULT) showResult(player, inventory);
-            else gui.render(player, inventory);
-        }, Math.max(1, delay));
+                                    tasks.remove(player.getUniqueId());
+                                    try {
+                                        manager.finishDeal(player.getUniqueId());
+                                    } catch (RuntimeException exception) {
+                                        plugin.getLogger()
+                                                .severe(
+                                                        "Blackjack settlement failed for "
+                                                                + player.getUniqueId()
+                                                                + ": "
+                                                                + exception.getMessage());
+                                        gui.render(player, inventory);
+                                        return;
+                                    }
+                                    if (session.phase() == BlackjackPhase.RESULT)
+                                        showResult(player, inventory);
+                                    else gui.render(player, inventory);
+                                },
+                                Math.max(1, delay));
         tasks.put(player.getUniqueId(), task);
     }
 
@@ -75,34 +94,56 @@ public final class BlackjackAnimation {
         cancel(player.getUniqueId());
         BlackjackSession session = manager.session(player.getUniqueId()).orElse(null);
         if (session == null || session.phase() != BlackjackPhase.RESULT) return;
-        if (inventory.getHolder() instanceof BlackjackGuiHolder holder) holder.setRevealingDealer(true);
+        if (inventory.getHolder() instanceof BlackjackGuiHolder holder)
+            holder.setRevealingDealer(true);
         gui.render(player, inventory, session.playerHand().cards().size(), 2, true);
         revealStep(player, inventory, session, 2);
     }
 
-    private void revealStep(Player player, Inventory inventory, BlackjackSession session, int visibleCards) {
+    private void revealStep(
+            Player player, Inventory inventory, BlackjackSession session, int visibleCards) {
         long delay = plugin.getConfig().getLong("blackjack.animation.dealer-delay-ticks", 6);
-        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (manager.session(player.getUniqueId()).orElse(null) != session || !viewing(player, inventory)) {
-                tasks.remove(player.getUniqueId());
-                return;
-            }
+        BukkitTask task =
+                plugin.getServer()
+                        .getScheduler()
+                        .runTaskLater(
+                                plugin,
+                                () -> {
+                                    if (manager.session(player.getUniqueId()).orElse(null)
+                                                    != session
+                                            || !viewing(player, inventory)) {
+                                        tasks.remove(player.getUniqueId());
+                                        return;
+                                    }
 
-            gui.render(player, inventory, session.playerHand().cards().size(),
-                Math.min(visibleCards, session.dealerHand().cards().size()), false);
-            sound(player, () -> Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.0f);
-            if (visibleCards < session.dealerHand().cards().size()) {
-                revealStep(player, inventory, session, visibleCards + 1);
-                return;
-            }
+                                    gui.render(
+                                            player,
+                                            inventory,
+                                            session.playerHand().cards().size(),
+                                            Math.min(
+                                                    visibleCards,
+                                                    session.dealerHand().cards().size()),
+                                            false);
+                                    sound(player, () -> Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.0f);
+                                    if (visibleCards < session.dealerHand().cards().size()) {
+                                        revealStep(player, inventory, session, visibleCards + 1);
+                                        return;
+                                    }
 
-            tasks.remove(player.getUniqueId());
-            if (inventory.getHolder() instanceof BlackjackGuiHolder holder) holder.setRevealingDealer(false);
-            gui.render(player, inventory);
-            sound(player, () -> Sound.BLOCK_NOTE_BLOCK_BELL, 0.9f,
-                session.outcome() == BlackjackOutcome.LOSS ? 0.8f : 1.2f);
-            scheduleReset(player, inventory, session);
-        }, Math.max(1, delay));
+                                    tasks.remove(player.getUniqueId());
+                                    if (inventory.getHolder() instanceof BlackjackGuiHolder holder)
+                                        holder.setRevealingDealer(false);
+                                    gui.render(player, inventory);
+                                    sound(
+                                            player,
+                                            () -> Sound.BLOCK_NOTE_BLOCK_BELL,
+                                            0.9f,
+                                            session.outcome() == BlackjackOutcome.LOSS
+                                                    ? 0.8f
+                                                    : 1.2f);
+                                    scheduleReset(player, inventory, session);
+                                },
+                                Math.max(1, delay));
         tasks.put(player.getUniqueId(), task);
     }
 
@@ -116,14 +157,21 @@ public final class BlackjackAnimation {
 
     private void scheduleReset(Player player, Inventory inventory, BlackjackSession session) {
         long delay = plugin.getConfig().getLong("blackjack.animation.result-duration-ticks", 50);
-        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            tasks.remove(player.getUniqueId());
-            if (manager.session(player.getUniqueId()).orElse(null) == session
-                && viewing(player, inventory)
-                && manager.reset(player.getUniqueId())) {
-                gui.render(player, inventory);
-            }
-        }, Math.max(1, delay));
+        BukkitTask task =
+                plugin.getServer()
+                        .getScheduler()
+                        .runTaskLater(
+                                plugin,
+                                () -> {
+                                    tasks.remove(player.getUniqueId());
+                                    if (manager.session(player.getUniqueId()).orElse(null)
+                                                    == session
+                                            && viewing(player, inventory)
+                                            && manager.reset(player.getUniqueId())) {
+                                        gui.render(player, inventory);
+                                    }
+                                },
+                                Math.max(1, delay));
         tasks.put(player.getUniqueId(), task);
     }
 

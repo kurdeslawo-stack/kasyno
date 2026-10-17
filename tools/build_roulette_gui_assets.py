@@ -2,7 +2,7 @@
 from pathlib import Path
 import json
 from PIL import Image, ImageDraw
-from build_blackjack_assets import draw_glyph, glyph_width
+from pixel_art import draw_glyph, glyph_width
 
 GOLD = '#d9b45d'
 IVORY = '#fff4d5'
