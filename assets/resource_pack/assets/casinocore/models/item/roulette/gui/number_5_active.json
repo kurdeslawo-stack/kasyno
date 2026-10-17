@@ -1,0 +1,15 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "casinocore:item/roulette/gui/number_5_active"
+  },
+  "display": {
+    "gui": {
+      "scale": [
+        1.125,
+        1.125,
+        1
+      ]
+    }
+  }
+}

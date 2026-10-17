@@ -250,6 +250,13 @@ def generate_preview(identifiers: list[str]) -> None:
 
 
 def assemble_pack() -> None:
+    from build_roulette_gui_assets import generate
+    generate(ROULETTE_PACK)
+    save_json(ROULETTE_PACK / 'assets/minecraft/atlases/blocks.json', {
+        'sources': [{'type': 'minecraft:single',
+                     'resource': 'casinocore:entity/roulette_table',
+                     'sprite': 'casinocore:entity/roulette_table'}]
+    })
     if not (ROULETTE_PACK / "pack.mcmeta").is_file():
         raise FileNotFoundError("Roulette resource pack source is missing")
     safe_recreate(UNIFIED_PACK)
@@ -328,6 +335,7 @@ def validate(identifiers: list[str]) -> list[str]:
             raise AssertionError(f"Invalid item definition: {identifier}")
 
     required_roulette = (
+        "assets/minecraft/atlases/blocks.json",
         "assets/casinocore/items/roulette_table.json",
         "assets/casinocore/items/roulette_table_base.json",
         "assets/casinocore/items/roulette_wheel.json",
@@ -337,6 +345,12 @@ def validate(identifiers: list[str]) -> list[str]:
     for relative_path in required_roulette:
         if not (UNIFIED_PACK / relative_path).is_file():
             raise AssertionError(f"Missing Roulette asset: {relative_path}")
+    atlas = json.loads((UNIFIED_PACK / 'assets/minecraft/atlases/blocks.json').read_text(encoding='utf-8'))
+    if not any(source.get('type') == 'minecraft:single'
+               and source.get('resource') == 'casinocore:entity/roulette_table'
+               and source.get('sprite', source.get('resource')) == 'casinocore:entity/roulette_table'
+               for source in atlas.get('sources', [])):
+        raise AssertionError('Furniture texture is not registered in the block model atlas')
 
     DIST.mkdir(parents=True, exist_ok=True)
     for old_zip in DIST.glob("CasinoCore_ResourcePack_*.zip"):
@@ -382,40 +396,10 @@ def validate(identifiers: list[str]) -> list[str]:
         f"JSON syntax: {len(json_paths)} unified pack JSON files parsed",
         "Unified references: every casinocore item, model and texture reference resolves",
         "Roulette: table, BASE, WHEEL, BALL and atlas present in unified pack",
+        "Furniture sprite: entity/roulette_table explicitly registered in minecraft:blocks atlas",
         "ZIP: integrity valid and pack.mcmeta located at archive root",
         f"Output: {ZIP_PATH.name}",
     ]
-
-
-def write_documentation(report: list[str]) -> None:
-    readme = """# CasinoCore Blackjack cards
-
-Deterministycznie generowana talia 52 kart oraz rewers dla Minecraft Java 26.3.
-Karty mają jasny front, złotą ramkę, czytelną rangę i duży symbol koloru.
-Rewers używa ciemnej zieleni, złotej ramki i monogramu CasinoCore.
-
-Uruchom z katalogu repozytorium:
-
-```powershell
-py -3 tools/build_blackjack_assets.py
-```
-
-Generator tworzy źródłowe PNG i JSON-y w `assets/blackjack/generated`, podgląd
-w `assets/blackjack/preview`, wspólną paczkę w `assets/resource_pack` oraz ZIP
-`dist/CasinoCore_ResourcePack_26.3.zip`. Paczka zawiera jednocześnie Roulette
-i Blackjack. Nie wymaga OptiFine.
-
-Identyfikatory mają postać `casinocore:blackjack/cards/<ranga>_<kolor>`, np.
-`casinocore:blackjack/cards/ace_spades` i `casinocore:blackjack/cards/10_hearts`.
-Rewers: `casinocore:blackjack/cards/card_back`.
-
-```mcfunction
-/give @s minecraft:paper[minecraft:item_model="casinocore:blackjack/cards/ace_spades"]
-/give @s minecraft:paper[minecraft:item_model="casinocore:blackjack/cards/card_back"]
-```
-"""
-    (BLACKJACK_ROOT / "README_PL.md").write_text(readme, encoding="utf-8")
-    (BLACKJACK_ROOT / "VALIDATION.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
 
 
 def main() -> None:
@@ -424,7 +408,6 @@ def main() -> None:
     generate_preview(identifiers)
     assemble_pack()
     report = validate(identifiers)
-    write_documentation(report)
     print("\n".join(report))
 
 

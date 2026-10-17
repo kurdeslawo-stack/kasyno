@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -38,6 +39,7 @@ public final class BlackjackGuiListener implements Listener {
     public void onClick(InventoryClickEvent event) {
         if (!(event.getView().getTopInventory().getHolder() instanceof BlackjackGuiHolder holder)) return;
         event.setCancelled(true);
+        if (event.getClick() != ClickType.LEFT && event.getClick() != ClickType.RIGHT) return;
         if (!(event.getWhoClicked() instanceof Player player)
             || !holder.playerId().equals(player.getUniqueId())) return;
 

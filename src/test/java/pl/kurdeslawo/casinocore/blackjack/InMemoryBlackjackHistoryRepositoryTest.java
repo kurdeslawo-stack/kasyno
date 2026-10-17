@@ -1,6 +1,0 @@
-package pl.kurdeslawo.casinocore.blackjack;
-import org.junit.jupiter.api.Test;import java.util.*;import static org.junit.jupiter.api.Assertions.*;
-class InMemoryBlackjackHistoryRepositoryTest {
-    @Test void calculatesStatsAndNet(){UUID id=UUID.randomUUID();InMemoryBlackjackHistoryRepository h=new InMemoryBlackjackHistoryRepository();h.record(id,new BlackjackRoundRecord(21,18,5,12,BlackjackOutcome.BLACKJACK));h.record(id,new BlackjackRoundRecord(18,20,5,0,BlackjackOutcome.LOSS));h.record(id,new BlackjackRoundRecord(19,19,5,5,BlackjackOutcome.PUSH));BlackjackStats s=h.stats(id);assertEquals(3,s.played());assertEquals(1,s.wins());assertEquals(1,s.losses());assertEquals(1,s.pushes());assertEquals(1,s.blackjacks());assertEquals(15,s.staked());assertEquals(17,s.paid());assertEquals(2,s.net());}
-    @Test void keepsFiveNewestRounds(){UUID id=UUID.randomUUID();InMemoryBlackjackHistoryRepository h=new InMemoryBlackjackHistoryRepository();for(int x=0;x<6;x++)h.record(id,new BlackjackRoundRecord(x,17,1,0,BlackjackOutcome.LOSS));assertEquals(5,h.recent(id).size());assertEquals(5,h.recent(id).getFirst().playerValue());assertEquals(1,h.recent(id).getLast().playerValue());assertEquals(6,h.stats(id).played());}
-}

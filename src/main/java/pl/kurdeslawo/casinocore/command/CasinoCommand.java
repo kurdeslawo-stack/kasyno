@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import pl.kurdeslawo.casinocore.CasinoCorePlugin;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
 import pl.kurdeslawo.casinocore.economy.LocalEconomyProvider;
+import pl.kurdeslawo.casinocore.gui.CasinoSettingsFeedback;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +41,62 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             case "roulette" -> roulette(sender, args);
             case "blackjack" -> blackjack(sender, args);
             case "transactions" -> transactions(sender, args);
+            case "chances" -> chances(sender, args);
             default -> help(sender);
         };
+    }
+
+    private boolean chances(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) return true;
+        try {
+            if (args.length == 1) {
+                var random = plugin.rouletteRandom();
+                sender.sendMessage("§6CasinoCore • Szanse (wagi są względne, nie procentowe)");
+                for (int start : new int[]{0, 7}) {
+                    List<String> values = new ArrayList<>();
+                    for (int n = start; n < Math.min(start + 7, 13); n++) {
+                        values.add(n + ": " + percent(random.probability(n)));
+                    }
+                    sender.sendMessage("§7Ruletka: " + String.join(" | ", values));
+                }
+                sender.sendMessage("§7Blackjack: " + (plugin.blackjackManager().dealerHitsSoft17()
+                    ? "H17 — krupier dobiera na miękkim 17" : "standard — krupier stoi na miękkim 17"));
+                sender.sendMessage("§7Ruletka: szansa każdego zakładu jest widoczna w jego opisie w GUI.");
+                sender.sendMessage("§7Blackjack nie ma stałego % wygranych; wynik zależy od kart i decyzji gracza.");
+                sender.sendMessage("§7Zysk za blackjacka: " + plugin.blackjackManager().blackjackProfitNumerator()
+                    + "/" + plugin.blackjackManager().blackjackProfitDenominator() + " stawki (zaokrąglany w dół).");
+                sender.sendMessage("§e/casino chances roulette <0-12> <waga> | blackjack <standard|h17>");
+                return true;
+            }
+            boolean saved;
+            if (args.length == 4 && args[1].equalsIgnoreCase("roulette")) {
+                int number = Integer.parseInt(args[2]);
+                long weight = Long.parseLong(args[3]);
+                if (number < 0 || number > 12 || weight < 0
+                    || weight > pl.kurdeslawo.casinocore.roulette.RouletteRandom.MAX_WEIGHT) {
+                    throw new IllegalArgumentException("Numer: 0–12, waga: 0–1000000");
+                }
+                saved = plugin.updateRouletteWeight(number, weight);
+            } else if (args.length == 3 && args[1].equalsIgnoreCase("blackjack")
+                && (args[2].equalsIgnoreCase("standard") || args[2].equalsIgnoreCase("h17"))) {
+                saved = plugin.updateBlackjackDifficulty(args[2].equalsIgnoreCase("h17"));
+            } else {
+                sender.sendMessage("§e/casino chances roulette <0-12> <waga> | blackjack <standard|h17>");
+                return true;
+            }
+            if (saved) {
+                plugin.getLogger().info("Chance settings changed by " + sender.getName() + ": " + String.join(" ", args));
+                sender.sendMessage("§aZapisano w config.yml. Nowe ustawienia obowiązują od kolejnej rundy.");
+                CasinoSettingsFeedback.play(plugin, sender);
+            } else sender.sendMessage("§cNie zapisano ustawień. Sprawdź config i log serwera; przynajmniej jedna waga musi być dodatnia.");
+        } catch (IllegalArgumentException exception) {
+            sender.sendMessage("§cNiepoprawne ustawienie: " + exception.getMessage());
+        }
+        return true;
+    }
+
+    private static String percent(double value) {
+        return String.format(Locale.forLanguageTag("pl-PL"), "%.2f%%", 100 * value);
     }
 
     private boolean transactions(CommandSender sender, String[] args) {
@@ -90,10 +145,21 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         if (!requireAdmin(sender)) {
             return true;
         }
-        sender.sendMessage(plugin.reloadPluginConfiguration()
+        String previous = chanceSettingsKey();
+        boolean reloaded = plugin.reloadPluginConfiguration();
+        sender.sendMessage(reloaded
             ? "CasinoCore configuration reloaded."
             : "CasinoCore configuration is invalid or requires a restart. Check the console.");
+        if (reloaded && !previous.equals(chanceSettingsKey())) CasinoSettingsFeedback.play(plugin, sender);
         return true;
+    }
+
+    private String chanceSettingsKey() {
+        var roulette = plugin.rouletteManager();
+        var blackjack = plugin.blackjackManager();
+        return plugin.rouletteRandom().weights() + ":" + roulette.outsideMultiplier() + ":" + roulette.exactMultiplier()
+            + ":" + blackjack.dealerHitsSoft17() + ":" + blackjack.blackjackProfitNumerator()
+            + ":" + blackjack.blackjackProfitDenominator();
     }
 
     private boolean balance(CommandSender sender) {
@@ -214,7 +280,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private static boolean help(CommandSender sender) {
-        sender.sendMessage("Usage: /casino [reload|balance|coins set|coins add|roulette open|roulette create|roulette remove|blackjack open|transactions list]");
+        sender.sendMessage("Usage: /casino [reload|balance|coins set|coins add|roulette open|roulette create|roulette remove|blackjack open|transactions list|chances]");
         return true;
     }
 
@@ -232,6 +298,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
                 commands.add("reload");
                 commands.add("coins");
                 commands.add("transactions");
+                commands.add("chances");
             }
             if (sender.hasPermission("casinocore.roulette.open")
                 || sender.hasPermission("casinocore.roulette.manage")) {
@@ -246,6 +313,13 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("transactions") && sender.hasPermission("casinocore.admin")) {
             return matching(List.of("list", "resolve", "retry"), args[1]);
+        }
+        if (args.length > 1 && args[0].equalsIgnoreCase("chances") && sender.hasPermission("casinocore.admin")) {
+            if (args.length == 2) return matching(List.of("roulette", "blackjack"), args[1]);
+            if (args.length == 3 && args[1].equalsIgnoreCase("blackjack")) return matching(List.of("standard", "h17"), args[2]);
+            if (args.length == 3 && args[1].equalsIgnoreCase("roulette")) return matching(
+                java.util.stream.IntStream.rangeClosed(0, 12).mapToObj(Integer::toString).toList(), args[2]);
+            if (args.length == 4 && args[1].equalsIgnoreCase("roulette")) return matching(List.of("0", "1", "2", "5"), args[3]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("roulette")) {
             List<String> rouletteCommands = new ArrayList<>();

@@ -11,6 +11,28 @@ roulette:
     min: 0
     max: 12
 
+  # Szanse numerów: większa WAGA = częstszy wynik. To nie jest procent wygranych.
+  # 1 dla każdego numeru = poprzednie równe szanse 1/13.
+  # Przykład: waga 2 przy pozostałych 1 daje 2/14 = 14.29% temu numerowi.
+  # 0 wyłącza numer; co najmniej jeden numer musi mieć dodatnią wagę (maks. 1000000).
+  # Zmiana wpływa na WSZYSTKIE zakłady. Częstszy numer może być opłacalny do obstawiania!
+  # Admin: /casino chances roulette <numer> <waga> — zapisuje i stosuje bez restartu.
+  odds:
+    weights:
+      '0': 1
+      '1': 1
+      '2': 1
+      '3': 1
+      '4': 1
+      '5': 1
+      '6': 1
+      '7': 1
+      '8': 1
+      '9': 1
+      '10': 1
+      '11': 1
+      '12': 1
+
   # Total return multipliers, including the original stake.
   payouts:
     outside: 2
@@ -50,10 +72,15 @@ blackjack:
     - 5
     - 25
   rules:
-    # false means the dealer stands on soft 17.
+    # false: standard — krupier stoi na miękkim 17 (as + 6).
+    # true: H17 — krupier dobiera na miękkim 17. Zmienia szanse wynikające z zasad.
+    # Admin: /casino chances blackjack standard | /casino chances blackjack h17
+    # Brak stałego procentu wygranych: wynik zależy też od strategii i kart.
     dealer-hits-soft-17: false
   payouts:
-    # Blackjack profit ratio. With whole coins, fractional total returns are rounded down.
+    # Zysk za naturalnego blackjacka: 3/2 = +150% stawki, 1/1 = +100% stawki.
+    # Zmienia kwotę wygranej, nie prawdopodobieństwo jej wystąpienia.
+    # Ułamki zaokrąglane w dół. Zwykła wygrana nadal x2, remis zwraca stawkę.
     blackjack-profit-numerator: 3
     blackjack-profit-denominator: 2
   animation:

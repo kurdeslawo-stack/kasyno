@@ -38,6 +38,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
     private BlackjackGui blackjackGui;
     private BlackjackAnimation blackjackAnimation;
     private RoundJournal roundJournal;
+    private RouletteRandom rouletteRandom;
 
     @Override
     public void onEnable() {
@@ -57,7 +58,9 @@ public final class CasinoCorePlugin extends JavaPlugin {
             return;
         }
 
-        rouletteManager = new RouletteManager(economyProvider, new RouletteRandom(), stakes(),
+        rouletteRandom = new RouletteRandom();
+        rouletteRandom.updateWeights(rouletteWeights());
+        rouletteManager = new RouletteManager(economyProvider, rouletteRandom, stakes(),
             getConfig().getInt("roulette.payouts.outside", 2),
             getConfig().getInt("roulette.payouts.exact", 12), new InMemoryRouletteHistoryRepository(), roundJournal);
         rouletteGui = new RouletteGui(this, rouletteManager, economyProvider);
@@ -120,6 +123,10 @@ public final class CasinoCorePlugin extends JavaPlugin {
 
     public boolean reloadPluginConfiguration() {
         reloadConfig();
+        return applyPluginConfiguration();
+    }
+
+    private boolean applyPluginConfiguration() {
         if (!validateConfiguration()) {
             return false;
         }
@@ -132,6 +139,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
         rouletteManager.updateConfiguration(stakes(),
             getConfig().getInt("roulette.payouts.outside", 2),
             getConfig().getInt("roulette.payouts.exact", 12));
+        rouletteRandom.updateWeights(rouletteWeights());
         rouletteAnimation.reloadConfiguration();
         blackjackManager.updateConfiguration(blackjackStakes(),
             getConfig().getInt("blackjack.payouts.blackjack-profit-numerator", 3),
@@ -166,6 +174,11 @@ public final class CasinoCorePlugin extends JavaPlugin {
     }
 
     private boolean validateConfiguration() {
+        try { RouletteRandom.validateWeights(rouletteWeights()); }
+        catch (IllegalArgumentException exception) {
+            getLogger().severe("roulette.odds.weights: " + exception.getMessage());
+            return false;
+        }
         if (getConfig().getInt("roulette.numbers.min", 0) != 0
             || getConfig().getInt("roulette.numbers.max", 12) != 12) {
             getLogger().severe("This Roulette version requires roulette.numbers.min=0 and max=12.");
@@ -265,6 +278,58 @@ public final class CasinoCorePlugin extends JavaPlugin {
     }
 
     private List<Long> blackjackStakes() { return getConfig().getLongList("blackjack.stakes"); }
+
+    private List<Long> rouletteWeights() {
+        var section = getConfig().getConfigurationSection("roulette.odds.weights");
+        if (section == null && getConfig().contains("roulette.odds.weights")) {
+            throw new IllegalArgumentException("Oczekiwano mapy wag dla numerów 0–12");
+        }
+        if (section != null && section.getKeys(false).stream().anyMatch(k -> !k.matches("[0-9]|1[0-2]"))) {
+            throw new IllegalArgumentException("Dozwolone numery: 0–12");
+        }
+        java.util.ArrayList<Long> weights = new java.util.ArrayList<>();
+        for (int number = 0; number <= 12; number++) {
+            Object value = section == null ? 1 : section.get(Integer.toString(number), 1);
+            if (!(value instanceof Integer || value instanceof Long)) {
+                throw new IllegalArgumentException("Waga numeru " + number + " musi być liczbą całkowitą");
+            }
+            weights.add(((Number) value).longValue());
+        }
+        return weights;
+    }
+
+    public RouletteRandom rouletteRandom() { return rouletteRandom; }
+
+    public boolean updateRouletteWeight(int number, long weight) {
+        if (number < 0 || number > 12 || weight < 0 || weight > RouletteRandom.MAX_WEIGHT) return false;
+        return updateChanceSetting("roulette.odds.weights." + number, weight);
+    }
+
+    public boolean updateBlackjackDifficulty(boolean hitSoft17) {
+        return updateChanceSetting("blackjack.rules.dealer-hits-soft-17", hitSoft17);
+    }
+
+    private boolean updateChanceSetting(String path, Object value) {
+        Object previous = getConfig().get(path);
+        getConfig().set(path, value);
+        try {
+            if (!applyPluginConfiguration()) {
+                getConfig().set(path, previous);
+                return false;
+            }
+            var destination = getDataFolder().toPath().resolve("config.yml");
+            var temporary = getDataFolder().toPath().resolve("config.yml.chances.tmp");
+            java.nio.file.Files.writeString(temporary, getConfig().saveToString());
+            java.nio.file.Files.move(temporary, destination, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (java.io.IOException | RuntimeException exception) {
+            getConfig().set(path, previous);
+            applyPluginConfiguration();
+            getLogger().severe("Nie zapisano ustawień szans: " + exception.getMessage());
+            return false;
+        }
+    }
 
     public EconomyProvider economyProvider() { return economyProvider; }
     public RouletteManager rouletteManager() { return rouletteManager; }

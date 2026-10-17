@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -37,6 +38,7 @@ public final class RouletteGuiListener implements Listener {
             return;
         }
         event.setCancelled(true);
+        if (event.getClick() != ClickType.LEFT && event.getClick() != ClickType.RIGHT) return;
         if (!(event.getWhoClicked() instanceof Player player) || !holder.playerId().equals(player.getUniqueId())) {
             return;
         }
@@ -78,7 +80,9 @@ public final class RouletteGuiListener implements Listener {
             if (!outcome.started()) {
                 String message = outcome.session().selectedBet() == null
                     ? "Najpierw wybierz zakład."
-                    : "Nie masz wystarczającej liczby coinów.";
+                    : !manager.allowedStakes().contains(outcome.session().selectedStake())
+                        ? "Stawki zostały zmienione. Wybierz dostępną stawkę."
+                        : "Nie masz wystarczającej liczby coinów.";
                 player.sendActionBar(Component.text(message, NamedTextColor.RED));
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.45f, 0.8f);
                 return;

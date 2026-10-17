@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "casinocore:entity/roulette_table",
+      "sprite": "casinocore:entity/roulette_table"
+    }
+  ]
+}

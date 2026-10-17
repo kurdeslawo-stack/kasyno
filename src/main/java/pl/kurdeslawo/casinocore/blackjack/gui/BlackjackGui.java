@@ -1,6 +1,7 @@
 package pl.kurdeslawo.casinocore.blackjack.gui;
 
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -21,9 +22,9 @@ import pl.kurdeslawo.casinocore.blackjack.BlackjackPhase;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackRank;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackRoundRecord;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSession;
-import pl.kurdeslawo.casinocore.blackjack.BlackjackStats;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSuit;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
+import pl.kurdeslawo.casinocore.gui.CasinoGuiIcons;
 
 public final class BlackjackGui {
     public static final int SIZE = 54;
@@ -31,14 +32,13 @@ public final class BlackjackGui {
     public static final int HIT = 45;
     public static final int STAND = 47;
     public static final int DOUBLE = 49;
-    public static final int CLOSE = 51;
+    public static final int CLOSE = 53;
 
-    private static final int BALANCE = 52;
-    private static final int STATS = 53;
+    private static final int BALANCE = 50;
+    private static final int HISTORY = 8;
     private static final int[] STAKES = {19, 20, 21};
     private static final int[] DEALER = {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12};
     private static final int[] PLAYER = {27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38};
-    private static final int[] HISTORY = {8, 17, 26, 35, 44};
 
     private final JavaPlugin plugin;
     private final BlackjackManager manager;
@@ -78,8 +78,9 @@ public final class BlackjackGui {
 
     public void render(Player player, Inventory inventory, int playerVisible, int dealerVisible, boolean hideHole) {
         BlackjackSession session = manager.openSession(player.getUniqueId());
-        ItemStack filler = item(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), false);
-        for (int slot = 0; slot < SIZE; slot++) inventory.setItem(slot, filler);
+        ItemStack filler = CasinoGuiIcons.apply(item(Material.GREEN_STAINED_GLASS_PANE, Component.text(" "), false), "background_felt");
+        ItemStack rail = CasinoGuiIcons.apply(item(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), false), "background_rail");
+        for (int slot = 0; slot < SIZE; slot++) inventory.setItem(slot, slot >= 45 || slot / 9 == 2 ? rail : filler);
 
         List<BlackjackCard> playerCards = session.playerHand().cards();
         List<BlackjackCard> dealerCards = session.dealerHand().cards();
@@ -107,9 +108,10 @@ public final class BlackjackGui {
         for (int index = 0; index < Math.min(3, stakes.size()); index++) {
             long value = stakes.get(index);
             boolean selected = value == session.selectedStake();
-            inventory.setItem(STAKES[index], item(icons[index],
-                Component.text(value + " coinów", NamedTextColor.GOLD), selected,
-                Component.text(selected ? "✓ Aktualna stawka" : "Kliknij, aby ustawić", NamedTextColor.GREEN)));
+            inventory.setItem(STAKES[index], CasinoGuiIcons.stake(item(icons[index],
+                Component.text((selected ? "✓ " : "") + value + " coinów",
+                    selected ? NamedTextColor.GREEN : NamedTextColor.GOLD, TextDecoration.BOLD), selected,
+                Component.text(selected ? "✓ Aktualna stawka" : "Kliknij, aby ustawić", NamedTextColor.GREEN)), value, selected));
         }
     }
 
@@ -174,37 +176,21 @@ public final class BlackjackGui {
     }
 
     private void renderHistory(Inventory inventory, Player player) {
-        BlackjackStats stats = manager.stats(player.getUniqueId());
-        NamedTextColor netColor = stats.net() > 0 ? NamedTextColor.GREEN
-            : stats.net() < 0 ? NamedTextColor.RED : NamedTextColor.GRAY;
-        inventory.setItem(STATS, item(Material.WRITABLE_BOOK,
-            Component.text("TWOJE STATYSTYKI", NamedTextColor.GOLD, TextDecoration.BOLD), false,
-            Component.text("Rozegrane: " + stats.played(), NamedTextColor.GRAY),
-            Component.text("Wygrane: " + stats.wins(), NamedTextColor.GREEN),
-            Component.text("Przegrane: " + stats.losses(), NamedTextColor.RED),
-            Component.text("Remisy: " + stats.pushes(), NamedTextColor.YELLOW),
-            Component.text("Blackjacki: " + stats.blackjacks(), NamedTextColor.AQUA),
-            Component.text("Postawiono: " + stats.staked(), NamedTextColor.GRAY),
-            Component.text("Wypłacono: " + stats.paid(), NamedTextColor.GRAY),
-            Component.text("Bilans: " + signed(stats.net()), netColor)));
-
         List<BlackjackRoundRecord> rounds = manager.recent(player.getUniqueId());
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("Ostatnie 5 rund • od najnowszej", NamedTextColor.GRAY));
+        lore.add(Component.empty());
+        if (rounds.isEmpty()) lore.add(Component.text("Nie rozegrano jeszcze żadnej rundy.", NamedTextColor.GRAY));
         for (int index = 0; index < Math.min(5, rounds.size()); index++) {
             BlackjackRoundRecord round = rounds.get(index);
-            boolean win = round.outcome() == BlackjackOutcome.WIN || round.outcome() == BlackjackOutcome.BLACKJACK;
-            NamedTextColor color = win ? NamedTextColor.GREEN
-                : round.outcome() == BlackjackOutcome.LOSS ? NamedTextColor.RED : NamedTextColor.YELLOW;
-            Material material = win ? Material.LIME_DYE
-                : round.outcome() == BlackjackOutcome.LOSS ? Material.RED_DYE : Material.YELLOW_DYE;
-            inventory.setItem(HISTORY[index], item(material,
-                Component.text(outcomeName(round.outcome()), color, TextDecoration.BOLD), false,
-                Component.text("Ty: " + round.playerValue() + " • Krupier: " + round.dealerValue(),
-                    NamedTextColor.GRAY),
-                Component.text("Stawka: " + round.wager(), NamedTextColor.YELLOW),
-                Component.text("Wypłata: " + round.payout(), NamedTextColor.YELLOW),
-                Component.text("Bilans: " + signed(round.netChange()),
-                    round.netChange() >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            long net = round.netChange();
+            NamedTextColor color = net > 0 ? NamedTextColor.GREEN : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY;
+            lore.add(Component.text((index + 1) + ". " + outcomeName(round.outcome()), NamedTextColor.GRAY)
+                .append(Component.text(" • " + signed(net) + " coinów", color, TextDecoration.BOLD)));
         }
+        inventory.setItem(HISTORY, item(Material.WRITABLE_BOOK,
+            Component.text("HISTORIA", NamedTextColor.GOLD, TextDecoration.BOLD), false,
+            lore.toArray(Component[]::new)));
     }
 
     private ItemStack balance(Player player) {
@@ -302,6 +288,20 @@ public final class BlackjackGui {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         stack.setItemMeta(meta);
+        String icon = switch (material) {
+            case WRITABLE_BOOK -> "stats";
+            case SUNFLOWER -> "balance";
+            case BARRIER -> "close";
+            case EMERALD -> "win";
+            case REDSTONE -> "loss";
+            case GOLD_INGOT -> "balance";
+            case ARROW -> "hit" + (glow ? "" : "_disabled");
+            case SHIELD -> "stand" + (glow ? "" : "_disabled");
+            case ANVIL -> "double" + (glow ? "" : "_disabled");
+            case CLOCK, PAPER, COMPASS -> "deal";
+            default -> null;
+        };
+        if (icon != null) CasinoGuiIcons.apply(stack, icon);
         return stack;
     }
 

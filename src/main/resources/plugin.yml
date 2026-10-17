@@ -3,14 +3,14 @@ version: '${project.version}'
 main: pl.kurdeslawo.casinocore.CasinoCorePlugin
 api-version: '26.3'
 description: Casino plugin with Roulette, Blackjack and a pluggable economy.
-author: kurdeslawo-stack
+author: CasinoCore
 website: https://github.com/kurdeslawo-stack/kasyno
 softdepend: [Vault]
 
 commands:
   casino:
     description: CasinoCore player and administration commands.
-    usage: /casino [reload|balance|coins|roulette|blackjack|transactions]
+    usage: /casino [reload|balance|coins|roulette|blackjack|transactions|chances]
     permission: casinocore.command
 
 permissions:

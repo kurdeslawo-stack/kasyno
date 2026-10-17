@@ -70,6 +70,10 @@ public final class BlackjackManager {
         return Optional.ofNullable(sessions.get(playerId));
     }
 
+    public boolean dealerHitsSoft17() { return engine.hitSoft17(); }
+    public int blackjackProfitNumerator() { return engine.blackjackNumerator(); }
+    public int blackjackProfitDenominator() { return engine.blackjackDenominator(); }
+
     public void selectStake(UUID playerId, long stake) {
         if (!stakes.contains(stake)) throw new IllegalArgumentException("Unsupported Blackjack stake");
         openSession(playerId).selectStake(stake);

@@ -184,6 +184,16 @@ public final class RouletteManager {
     public int outsideMultiplier() { return engine.outsideMultiplier(); }
     public int exactMultiplier() { return engine.exactMultiplier(); }
 
+    public double winProbability(RouletteBetType type, Integer number) {
+        if (type == RouletteBetType.EXACT_NUMBER) return random.probability(Objects.requireNonNull(number));
+        RouletteBet preview = new RouletteBet(new UUID(0, 0), type, 1, null);
+        double chance = 0;
+        for (int n = 0; n <= 12; n++) {
+            if (engine.wins(preview, new RouletteResult(n, RouletteEngine.colorOf(n)))) chance += random.probability(n);
+        }
+        return chance;
+    }
+
     public Collection<RouletteSession> sessions() {
         return List.copyOf(sessions.values());
     }
