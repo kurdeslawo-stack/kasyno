@@ -23,8 +23,7 @@ Testowe coiny w trybie local: `/casino coins add <gracz> <kwota>`.
 ## Zmiana szans
 
 `/casino chances` pokazuje aktualne ustawienia. Zmiany poniżej zapisują się
-w `config.yml` i obowiązują od następnej rundy, bez restartu. Admin i gracze
-z otwartym GUI kasyna usłyszą dzwon oraz zobaczą krótki komunikat.
+w `config.yml` i obowiązują od następnej rundy, bez restartu. 
 
 ### Ruletka
 
