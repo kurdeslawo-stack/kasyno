@@ -19,3 +19,7 @@ Thumbs.db
 /assets/**/VALIDATION.txt
 /assets/**/README_PL.md
 /assets/resource_pack/
+
+# Recreated by the asset generators.
+/assets/blackjack/generated/
+/assets/**/preview/

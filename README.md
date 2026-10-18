@@ -4,7 +4,8 @@ Ruletka i Blackjack dla **Paper 26.3 / Java 25**.
 Gotowy plugin i resource pack: `dist/CasinoCore_TestServer_26.3.zip`.
 
 `src/main` zawiera plugin, `assets/roulette` źródła stołu i ikon,
-`assets/blackjack` karty, a `tools` generatory i pakowanie.
+`assets/blackjack/table` źródła stołu Blackjack, a `tools` generatory i pakowanie.
+Karty i podglądy są generowane automatycznie i nie są przechowywane w Git.
 Pliki robocze powstają w `target/`; gotowe pliki do przekazania są w `dist/`.
 
 ## Instalacja
@@ -61,3 +62,18 @@ Zmiana wypłaty zmienia kwotę wygranej, nie prawdopodobieństwo otrzymania ręk
 
 Po ręcznej edycji configu: `/casino reload`.
 Rundy już rozpoczęte zachowują swoje wyniki, karty i ustalone wypłaty.
+
+## Budowanie projektu
+
+Wymagania: Java 25, Python 3.12+ i Pillow (`python -m pip install Pillow`).
+
+```text
+./mvnw clean package
+python tools/build_blackjack_assets.py
+python tools/build_distribution.py
+```
+
+Na Windows zamiast `./mvnw` użyj `.\mvnw.cmd`.
+Pełne odtworzenie źródeł i eksportów stołów: `python tools/build_roulette_assets.py`.
+Generatory zachowują modele Blockbench i sprawdzają odwołania resource packa.
+`dist/` zawiera osobny JAR, resource pack oraz zbiorczy ZIP do instalacji.

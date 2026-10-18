@@ -46,24 +46,6 @@ def write(path, value):
 
 def generate():
     base = PACK / 'assets/casinocore'
-    from build_roulette_gui_assets import chip
-    for amount in (1,5,25):
-        identifier=f'effects/chip_{amount}'
-        path=base/f'textures/item/{identifier}.png'
-        path.parent.mkdir(parents=True,exist_ok=True)
-        chip(str(amount),'#9b6823').save(path)
-        # Three stepped prisms form a thick clipped token, with continuous face UVs.
-        token=[]
-        for n,(x0,x1,y0,y1) in enumerate(((3,13,1,3),(1,15,3,13),(3,13,13,15))):
-            faces={face:{'texture':'#0','uv':[0,0,16,2]} for face in ('up','down','east','west')}
-            for face in ('north','south'):
-                faces[face]={'texture':'#0','uv':[x0,16-y1,x1,16-y0]}
-            token.append({'from':[x0,y0,7.3],'to':[x1,y1,8.7],'faces':faces})
-        write(base/f'models/item/{identifier}.json',{'textures':{'0':f'casinocore:item/{identifier}'},
-              'elements':token,'gui_light':'front'})
-        write(base/f'items/{identifier}.json',{'model':{'type':'minecraft:model',
-              'model':f'casinocore:item/{identifier}'}})
-
     texture = base / 'textures/entity/blackjack_table.png'
     texture.parent.mkdir(parents=True, exist_ok=True)
     atlas = Image.open(ROOT/'assets/roulette/resource_pack/assets/casinocore/textures/entity/roulette_table.png').convert('RGBA')
