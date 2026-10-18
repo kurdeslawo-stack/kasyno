@@ -62,6 +62,8 @@ FONT = {
 's':['000','111','110','001','111'],' ':['00']*5,'-':['000','000','111','000','000'],
 '.':['0','0','0','0','1'],':':['0','1','0','1','0']}
 
+FONT['₭']=['10001','10010','11110','10100','10010']
+
 def text(draw, xy, s, color, scale=1, center=False):
     width = sum((len(FONT[ch][0])+1)*scale for ch in s)-scale
     x,y = xy
@@ -87,7 +89,7 @@ d.regular_polygon((cx,cy,64),8,rotation=22.5,fill='#242820',outline=C['gold'])
 # Standard single-zero betting board: 12 columns by 3 rows, usual red/black colors.
 REDS={1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36}
 bx,by,cw,ch=169,47,11,15
-text(d,(236,22),'CASINO CORE',C['ink'],1,True)
+text(d,(236,22),'LAINA',C['ink'],1,True)
 text(d,(236,29),'ROULETTE',C['light'],1,True)
 d.line((176,39,297,39),fill=C['gold'])
 d.rectangle((157,by,168,by+44),outline=C['ink'])
@@ -149,7 +151,7 @@ d.rectangle((376,296,391,311),fill='#121d19')
 d.rectangle((400,296,415,311),fill=C['red'])
 d.rectangle((424,296,439,311),fill='#257954')
 # Individual denomination plaques at full 8 px/unit, exact labels requested.
-for i,(label,color) in enumerate((('1 coin','#dddcc5'),('5 coins','#ba4447'),('25 coins','#328c64'))):
+for i,(label,color) in enumerate((('1 ₭','#dddcc5'),('5 ₭','#ba4447'),('25 ₭','#328c64'))):
     x=i*96
     d.rectangle((x,320,x+79,343),fill='#152d24',outline=C['gold'],width=2)
     d.rectangle((x+3,323,x+76,340),outline='#475c3c')
@@ -273,6 +275,9 @@ def translate(elements,offset):
 WHEEL_OFFSET=[-11,8.14,-1] # local (8,8,8) -> assembled (-3,16.14,7)
 BALL_CENTER=[-3,16.63,2.4]
 BALL_OFFSET=[BALL_CENTER[i]-8 for i in range(3)]
+from furniture_finish import finish
+finish(groups['base'], atlas)
+atlas.save(TEX)
 combined=groups['base']+translate(groups['wheel'],WHEEL_OFFSET)+translate(groups['ball'],BALL_OFFSET)
 ALL={'roulette_table':combined,'roulette_table_base':groups['base'],'roulette_wheel':groups['wheel'],'roulette_ball':groups['ball']}
 DISPLAY={'gui':{'rotation':[28,225,0],'translation':[0,0,0],'scale':[.32,.32,.32]},

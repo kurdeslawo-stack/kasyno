@@ -9,13 +9,13 @@ public final class CasinoHistoryLore {
 
     public static Component entry(long stake, long payout) {
         if (payout == 0) {
-            return Component.text("-" + stake + " coinów", NamedTextColor.RED);
+            return Component.text("-" + stake + "₭", NamedTextColor.RED);
         }
         long net = payout - stake;
         NamedTextColor color =
                 net > 0 ? NamedTextColor.GREEN : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY;
         String balance = net > 0 ? "+" + net : Long.toString(net);
-        return Component.text("-" + stake + " + " + payout + " = ", NamedTextColor.WHITE)
-                .append(Component.text(balance + " coinów", color));
+        return Component.text("-" + stake + "₭ + " + payout + "₭ = ", NamedTextColor.WHITE)
+                .append(Component.text(balance + "₭", color));
     }
 }

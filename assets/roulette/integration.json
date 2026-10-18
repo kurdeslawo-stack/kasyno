@@ -43,8 +43,8 @@
   "ball_orbit_radius_blocks": 0.2875,
   "ball_orbit_height_above_wheel_pivot_blocks": 0.030625,
   "element_counts": {
-    "roulette_table": 96,
-    "roulette_table_base": 84,
+    "roulette_table": 132,
+    "roulette_table_base": 120,
     "roulette_wheel": 11,
     "roulette_ball": 1
   },

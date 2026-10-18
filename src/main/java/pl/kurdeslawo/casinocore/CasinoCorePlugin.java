@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 
 public final class CasinoCorePlugin extends JavaPlugin {
+    private pl.kurdeslawo.casinocore.visual.TableEffects tableEffects;
     private static final long MAX_EXACT_VAULT_INTEGER = 9_007_199_254_740_992L;
     private EconomyProvider economyProvider;
     private String activeEconomyProvider;
@@ -116,6 +117,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
         CasinoCommand executor = new CasinoCommand(this);
         casinoCommand.setExecutor(executor);
         casinoCommand.setTabCompleter(executor);
+        tableEffects = new pl.kurdeslawo.casinocore.visual.TableEffects(this);
         boolean vaultDetected = getServer().getPluginManager().isPluginEnabled("Vault");
         String economyName =
                 economyProvider instanceof VaultEconomyProvider vault
@@ -138,6 +140,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (tableEffects != null) tableEffects.close();
         if (rouletteAnimation != null) {
             rouletteAnimation.cancelAll();
         }

@@ -315,7 +315,7 @@ public final class RouletteGui {
                             .append(
                                     Component.text(
                                             (won ? session.payout() : session.resultStake())
-                                                    + " coinów",
+                                                    + " ₭",
                                             NamedTextColor.YELLOW)));
         }
         RouletteBet bet = session.selectedBet();
@@ -434,13 +434,13 @@ public final class RouletteGui {
     }
 
     private static String coinWord(long amount) {
-        return amount == 1 ? "coin" : "coinów";
+        return "₭";
     }
 
     private Component balanceName(Player player) {
         try {
             return Component.text(
-                    "Saldo: " + economy.getBalance(player.getUniqueId()) + " coinów",
+                    "Saldo: " + economy.getBalance(player.getUniqueId()) + " ₭",
                     NamedTextColor.YELLOW);
         } catch (RuntimeException exception) {
             plugin.getLogger()

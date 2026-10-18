@@ -212,16 +212,24 @@ def generate_preview(identifiers: list[str]) -> None:
 def assemble_pack() -> None:
     from build_roulette_gui_assets import generate
     generate(ROULETTE_PACK)
-    save_json(ROULETTE_PACK / 'assets/minecraft/atlases/blocks.json', {
-        'sources': [{'type': 'minecraft:single',
-                     'resource': 'casinocore:entity/roulette_table',
-                     'sprite': 'casinocore:entity/roulette_table'}]
-    })
+    from build_roulette_neon import generate as generate_neon
+    generate_neon(ROULETTE_PACK)
+    from build_blackjack_table import generate as generate_table
+    table_pack = generate_table()
+    from build_stack_models import generate as generate_stacks
+    generate_stacks(ROULETTE_PACK, 'roulette')
+    generate_stacks(table_pack, 'blackjack')
     if not (ROULETTE_PACK / "pack.mcmeta").is_file():
         raise FileNotFoundError("Roulette resource pack source is missing")
     safe_recreate(UNIFIED_PACK)
     shutil.copytree(ROULETTE_PACK, UNIFIED_PACK, dirs_exist_ok=True)
     shutil.copytree(GENERATED_ROOT / "assets", UNIFIED_PACK / "assets", dirs_exist_ok=True)
+    shutil.copytree(table_pack / 'assets/casinocore', UNIFIED_PACK / 'assets/casinocore', dirs_exist_ok=True)
+    atlas_path = UNIFIED_PACK / 'assets/minecraft/atlases/blocks.json'
+    atlas = json.loads(atlas_path.read_text(encoding='utf-8'))
+    table_atlas = json.loads((table_pack / 'assets/minecraft/atlases/blocks.json').read_text(encoding='utf-8'))
+    atlas['sources'].extend(table_atlas['sources'])
+    save_json(atlas_path, atlas)
     save_json(UNIFIED_PACK / "pack.mcmeta", {
         "pack": {
             "description": f"CasinoCore | Roulette + Blackjack - Java {TARGET_VERSION}",
@@ -234,6 +242,37 @@ def assemble_pack() -> None:
 def validate(identifiers: list[str]) -> list[str]:
     if len(identifiers) != 53 or len(set(identifiers)) != 53:
         raise AssertionError("Expected 53 unique Blackjack identifiers")
+
+    neon = UNIFIED_PACK / "assets/casinocore/textures/entity/roulette_table_neon.png"
+    animation = json.loads(neon.with_suffix(".png.mcmeta").read_text(encoding="utf-8"))["animation"]
+    if animation != {"width": 512, "height": 512, "frametime": 4, "interpolate": True}:
+        raise AssertionError("Invalid LAINA neon animation metadata")
+    with Image.open(neon) as image:
+        if image.size != (512, 8192):
+            raise AssertionError("Expected sixteen 512px animation frames")
+        reference = image.crop((0, 0, 512, 512))
+        for index in range(16):
+            frame = image.crop((0, index * 512, 512, (index + 1) * 512))
+            for region in ((0, 176, 512, 320), (288, 320, 512, 360), (128, 360, 512, 400), (96, 400, 512, 512)):
+                if frame.crop(region).tobytes() != reference.crop(region).tobytes():
+                    raise AssertionError("Animation changes protected material regions")
+
+    table_root = BLACKJACK_ROOT / 'table'
+    table_model = json.loads((UNIFIED_PACK / 'assets/casinocore/models/entity/blackjack_table.json').read_text(encoding='utf-8'))
+    table_editor = json.loads((table_root / 'blockbench/blackjack_table.bbmodel').read_text(encoding='utf-8'))
+    if not table_model['elements'] or len(table_model['elements']) != len(table_editor['elements']):
+        raise AssertionError('Incomplete Blackjack furniture export')
+    for runtime, editor in zip(table_model['elements'], table_editor['elements']):
+        if runtime['from'] != editor['from'] or runtime['to'] != editor['to']:
+            raise AssertionError('Blackjack geometry differs between JSON and Blockbench')
+        for face, spec in runtime['faces'].items():
+            if [v * 32 for v in spec['uv']] != editor['faces'][face]['uv']:
+                raise AssertionError('Blackjack UVs differ between JSON and Blockbench')
+    table_neon = UNIFIED_PACK / 'assets/casinocore/textures/entity/blackjack_table_neon.png'
+    if Image.open(table_neon).size != (512, 8192):
+        raise AssertionError('Invalid Blackjack animation dimensions')
+    if json.loads(table_neon.with_suffix('.png.mcmeta').read_text(encoding='utf-8'))['animation'] != {'width':512,'height':512,'frametime':4,'interpolate':True}:
+        raise AssertionError('Invalid Blackjack animation metadata')
 
     json_paths = sorted(UNIFIED_PACK.rglob("*.json"))
     for path in json_paths:
@@ -307,7 +346,7 @@ def validate(identifiers: list[str]) -> list[str]:
             raise AssertionError(f"Missing Roulette asset: {relative_path}")
     atlas = json.loads((UNIFIED_PACK / 'assets/minecraft/atlases/blocks.json').read_text(encoding='utf-8'))
     if not any(source.get('type') == 'minecraft:single'
-               and source.get('resource') == 'casinocore:entity/roulette_table'
+               and source.get('resource') == 'casinocore:entity/roulette_table_neon'
                and source.get('sprite', source.get('resource')) == 'casinocore:entity/roulette_table'
                for source in atlas.get('sources', [])):
         raise AssertionError('Furniture texture is not registered in the block model atlas')
@@ -357,6 +396,8 @@ def validate(identifiers: list[str]) -> list[str]:
         "Unified references: every casinocore item, model and texture reference resolves",
         "Roulette: table, BASE, WHEEL, BALL and atlas present in unified pack",
         "Furniture sprite: entity/roulette_table explicitly registered in minecraft:blocks atlas",
+        "Table effects: sixteen frames, valid animation metadata, material regions preserved",
+        "Blackjack furniture: Blockbench geometry/UVs match, animated atlas present",
         "ZIP: integrity valid and pack.mcmeta located at archive root",
         f"Output: {ZIP_PATH.name}",
     ]

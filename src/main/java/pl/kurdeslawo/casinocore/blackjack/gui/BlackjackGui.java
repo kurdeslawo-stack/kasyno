@@ -167,7 +167,7 @@ public final class BlackjackGui {
                             item(
                                     icons[index],
                                     Component.text(
-                                            (selected ? "✓ " : "") + value + " coinów",
+                                            (selected ? "✓ " : "") + value + " ₭",
                                             selected ? NamedTextColor.GREEN : NamedTextColor.GOLD,
                                             TextDecoration.BOLD),
                                     selected,

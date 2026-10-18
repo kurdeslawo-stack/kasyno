@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "casinocore:entity/blackjack_table_neon",
+      "sprite": "casinocore:entity/blackjack_table"
+    }
+  ]
+}
