@@ -1,0 +1,32 @@
+name: CasinoCore
+version: '${project.version}'
+main: pl.kurdeslawo.casinocore.CasinoCorePlugin
+api-version: '26.3'
+description: Ruletka i Blackjack dla Lainy — CMD właściciela, bez własnej paczki i mebli.
+author: CasinoCore
+softdepend: [Vault]
+commands:
+  ruletka:
+    description: Otwiera ruletkę wskazanemu graczowi (komenda mebla/konsoli).
+    usage: /ruletka <nick>
+    permission: casinocore.roulette.open
+  blackjack:
+    description: Otwiera Blackjacka wskazanemu graczowi.
+    usage: /blackjack <nick>
+    permission: casinocore.blackjack.open
+  casinocore:
+    description: Konfiguracja i diagnostyka transakcji CasinoCore.
+    usage: /casinocore [reload|transactions|coins]
+    permission: casinocore.admin
+permissions:
+  casinocore.admin:
+    default: op
+    children:
+      casinocore.roulette.open: true
+      casinocore.blackjack.open: true
+  casinocore.roulette.open:
+    description: Pozwala wykonawcy otworzyć ruletkę innemu graczowi.
+    default: op
+  casinocore.blackjack.open:
+    description: Pozwala wykonawcy otworzyć Blackjacka innemu graczowi.
+    default: op
