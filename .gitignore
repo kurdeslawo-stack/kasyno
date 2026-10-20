@@ -23,3 +23,8 @@ Thumbs.db
 # Recreated by the asset generators.
 /assets/blackjack/generated/
 /assets/**/preview/
+
+# Archived furniture assets are not part of the current Laina plugin.
+/assets/
+/tools/*
+!/tools/build_distribution.py

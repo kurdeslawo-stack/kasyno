@@ -9,6 +9,15 @@ import java.util.UUID;
 public final class RouletteGuiHolder implements InventoryHolder {
     private final UUID playerId;
     private Inventory inventory;
+    private java.util.List<Long> renderedStakes = java.util.List.of();
+
+    void showStakes(java.util.List<Long> stakes) {
+        renderedStakes = java.util.List.copyOf(stakes);
+    }
+
+    java.util.List<Long> renderedStakes() {
+        return renderedStakes;
+    }
 
     public RouletteGuiHolder(UUID playerId) {
         this.playerId = playerId;

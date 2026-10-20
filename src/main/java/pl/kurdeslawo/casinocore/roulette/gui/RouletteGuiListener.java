@@ -3,7 +3,6 @@ package pl.kurdeslawo.casinocore.roulette.gui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -66,13 +65,16 @@ public final class RouletteGuiListener implements Listener {
         int stakeIndex = RouletteGui.stakeIndexAt(slot);
         List<Long> stakes = manager.allowedStakes();
         if (stakeIndex >= 0 && stakeIndex < stakes.size()) {
-            manager.selectStake(player.getUniqueId(), stakes.get(stakeIndex));
-            gui.render(player, holder.getInventory(), null);
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.35f, 1.25f);
-            return;
-        }
+            if (!holder.renderedStakes().equals(stakes)) {
+                gui.render(player, holder.getInventory(), null);
+                player.sendActionBar(
+                        Component.text(
+                                "Stawki uległy zmianie. Sprawdź kwoty i kliknij ponownie.",
+                                NamedTextColor.YELLOW));
+                return;
+            }
 
-        if (slot == RouletteGui.SPIN_SLOT) {
+            manager.selectStake(player.getUniqueId(), stakes.get(stakeIndex));
             RouletteManager.StartRoundOutcome outcome;
             try {
                 outcome = manager.startRound(player.getUniqueId());
@@ -97,9 +99,10 @@ public final class RouletteGuiListener implements Listener {
                                 : !manager.allowedStakes()
                                                 .contains(outcome.session().selectedStake())
                                         ? "Stawki zostały zmienione. Wybierz dostępną stawkę."
-                                        : "Nie masz wystarczającej liczby coinów.";
+                                        : "Nie masz wystarczającego salda.";
                 player.sendActionBar(Component.text(message, NamedTextColor.RED));
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.45f, 0.8f);
+                player.playSound(
+                        player.getLocation(), "minecraft:block.note_block.bass", 0.45f, 0.8f);
                 return;
             }
             gui.render(player, holder.getInventory(), null);
@@ -116,7 +119,7 @@ public final class RouletteGuiListener implements Listener {
 
         manager.selectBet(player.getUniqueId(), type, exactNumber);
         gui.render(player, holder.getInventory(), null);
-        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.1f);
+        player.playSound(player.getLocation(), "minecraft:ui.button.click", 0.4f, 1.1f);
     }
 
     @EventHandler

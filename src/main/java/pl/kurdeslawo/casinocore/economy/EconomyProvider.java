@@ -2,6 +2,7 @@ package pl.kurdeslawo.casinocore.economy;
 
 import java.util.UUID;
 
+/** Amounts use minor units: 100 = 1 ₭. */
 public interface EconomyProvider {
     // withdraw=false and EconomyTransactionException.rejected(...) must mean no
     // transfer occurred. Any other transaction exception is ambiguous: a caller

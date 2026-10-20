@@ -1,9 +1,0 @@
-{
-  "sources": [
-    {
-      "type": "minecraft:single",
-      "resource": "casinocore:entity/roulette_table_neon",
-      "sprite": "casinocore:entity/roulette_table"
-    }
-  ]
-}

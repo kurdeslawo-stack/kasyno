@@ -23,8 +23,9 @@ import pl.kurdeslawo.casinocore.blackjack.BlackjackRoundRecord;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSession;
 import pl.kurdeslawo.casinocore.blackjack.BlackjackSuit;
 import pl.kurdeslawo.casinocore.economy.EconomyProvider;
-import pl.kurdeslawo.casinocore.gui.CasinoGuiIcons;
+import pl.kurdeslawo.casinocore.economy.Money;
 import pl.kurdeslawo.casinocore.gui.CasinoHistoryLore;
+import pl.kurdeslawo.casinocore.gui.ConfiguredIcon;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,11 +67,7 @@ public final class BlackjackGui {
                 Bukkit.createInventory(
                         holder,
                         SIZE,
-                        plain(
-                                Component.text(
-                                        "CasinoCore • Blackjack",
-                                        NamedTextColor.GOLD,
-                                        TextDecoration.BOLD)));
+                        plain(Component.text("Blackjack", NamedTextColor.DARK_PURPLE)));
         holder.attach(inventory);
         manager.openSession(player.getUniqueId());
         render(player, inventory);
@@ -106,11 +103,11 @@ public final class BlackjackGui {
             boolean hideHole) {
         BlackjackSession session = manager.openSession(player.getUniqueId());
         ItemStack filler =
-                CasinoGuiIcons.apply(
+                applyIcon(
                         item(Material.GREEN_STAINED_GLASS_PANE, Component.text(" "), false),
                         "background_felt");
         ItemStack rail =
-                CasinoGuiIcons.apply(
+                applyIcon(
                         item(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), false),
                         "background_rail");
         for (int slot = 0; slot < SIZE; slot++)
@@ -163,11 +160,11 @@ public final class BlackjackGui {
             boolean selected = value == session.selectedStake();
             inventory.setItem(
                     STAKES[index],
-                    CasinoGuiIcons.stake(
+                    stakeIcon(
                             item(
                                     icons[index],
                                     Component.text(
-                                            (selected ? "✓ " : "") + value + " ₭",
+                                            (selected ? "✓ " : "") + Money.format(value) + " ₭",
                                             selected ? NamedTextColor.GREEN : NamedTextColor.GOLD,
                                             TextDecoration.BOLD),
                                     selected,
@@ -196,7 +193,7 @@ public final class BlackjackGui {
                             Component.text("Stawka: ", NamedTextColor.GRAY)
                                     .append(
                                             Component.text(
-                                                    session.selectedStake(),
+                                                    Money.format(session.selectedStake()),
                                                     NamedTextColor.YELLOW)),
                             Component.empty(),
                             Component.text("Kliknij, aby rozpocząć", NamedTextColor.GREEN));
@@ -265,7 +262,9 @@ public final class BlackjackGui {
                                 + session.dealerHand().value(),
                         NamedTextColor.GRAY),
                 Component.text("Wypłata: ", NamedTextColor.GRAY)
-                        .append(Component.text(session.payout(), NamedTextColor.YELLOW)));
+                        .append(
+                                Component.text(
+                                        Money.format(session.payout()), NamedTextColor.YELLOW)));
     }
 
     private void renderActions(Inventory inventory, BlackjackSession session) {
@@ -335,7 +334,7 @@ public final class BlackjackGui {
             return item(
                     Material.SUNFLOWER,
                     Component.text(
-                            "Saldo: " + economy.getBalance(player.getUniqueId()),
+                            "Saldo: " + Money.format(economy.getBalance(player.getUniqueId())),
                             NamedTextColor.YELLOW),
                     false);
         } catch (RuntimeException exception) {
@@ -347,7 +346,7 @@ public final class BlackjackGui {
         }
     }
 
-    private static ItemStack card(BlackjackCard card) {
+    private ItemStack card(BlackjackCard card) {
         boolean red = card.suit() == BlackjackSuit.HEARTS || card.suit() == BlackjackSuit.DIAMONDS;
         ItemStack stack =
                 item(
@@ -358,11 +357,21 @@ public final class BlackjackGui {
                                 TextDecoration.BOLD),
                         false,
                         Component.text(cardName(card), NamedTextColor.GRAY));
-        setItemModel(stack, BlackjackCardModels.modelKey(card));
+        applyIcon(
+                stack,
+                (card.rank().value() >= 2
+                                        && card.rank().value() <= 10
+                                        && card.rank() != BlackjackRank.JACK
+                                        && card.rank() != BlackjackRank.QUEEN
+                                        && card.rank() != BlackjackRank.KING
+                                ? Integer.toString(card.rank().value())
+                                : card.rank().name().toLowerCase(java.util.Locale.ROOT))
+                        + "_"
+                        + card.suit().name().toLowerCase(java.util.Locale.ROOT));
         return stack;
     }
 
-    private static ItemStack hidden() {
+    private ItemStack hidden() {
         ItemStack stack =
                 item(
                         Material.PAPER,
@@ -370,7 +379,7 @@ public final class BlackjackGui {
                                 "ZAKRYTA KARTA", NamedTextColor.DARK_GRAY, TextDecoration.BOLD),
                         true,
                         Component.text("Krupier odsłoni ją po Twojej turze", NamedTextColor.GRAY));
-        setItemModel(stack, BlackjackCardModels.cardBackKey());
+        applyIcon(stack, "card_back");
         return stack;
     }
 
@@ -419,8 +428,7 @@ public final class BlackjackGui {
         return -1;
     }
 
-    private static ItemStack item(
-            Material material, Component name, boolean glow, Component... lore) {
+    private ItemStack item(Material material, Component name, boolean glow, Component... lore) {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(plain(name));
@@ -444,14 +452,20 @@ public final class BlackjackGui {
                     case CLOCK, PAPER, COMPASS -> "deal";
                     default -> null;
                 };
-        if (icon != null) CasinoGuiIcons.apply(stack, icon);
+        if (icon != null) applyIcon(stack, icon);
         return stack;
     }
 
-    private static void setItemModel(ItemStack stack, org.bukkit.NamespacedKey modelKey) {
-        ItemMeta meta = stack.getItemMeta();
-        meta.setItemModel(modelKey);
-        stack.setItemMeta(meta);
+    private ItemStack applyIcon(ItemStack stack, String icon) {
+        return ConfiguredIcon.apply(stack, plugin.getConfig(), "blackjack." + icon, "normal");
+    }
+
+    private ItemStack stakeIcon(ItemStack stack, long value, boolean selected) {
+        return ConfiguredIcon.apply(
+                stack,
+                plugin.getConfig(),
+                "blackjack.stake_" + Money.format(value).replace(',', '_'),
+                selected ? "selected" : "normal");
     }
 
     private static Component plain(Component component) {

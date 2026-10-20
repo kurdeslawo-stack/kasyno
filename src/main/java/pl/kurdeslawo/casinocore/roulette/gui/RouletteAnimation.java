@@ -61,7 +61,7 @@ public final class RouletteAnimation {
         cancel(player.getUniqueId());
         RouletteSession session = manager.session(player.getUniqueId()).orElseThrow();
         int finalNumber = session.result().winningNumber();
-        int finalStep = 26 + finalNumber;
+        int finalStep = 22 + finalNumber;
         scheduleStep(player, inventory, 0, finalStep);
     }
 
@@ -132,9 +132,9 @@ public final class RouletteAnimation {
 
     private void scheduleStep(Player player, Inventory inventory, int step, int finalStep) {
         long delay =
-                step < 13
+                step < 11
                         ? fastDelay
-                        : step < 25 ? mediumDelay : step < 32 ? slowDelay : finalDelay;
+                        : step < 21 ? mediumDelay : step < 27 ? slowDelay : finalDelay;
         BukkitTask task =
                 plugin.getServer()
                         .getScheduler()
@@ -150,7 +150,7 @@ public final class RouletteAnimation {
                                         tasks.remove(playerId);
                                         return;
                                     }
-                                    int highlighted = step % 13;
+                                    int highlighted = step % 11;
                                     gui.highlightNumber(inventory, highlighted);
                                     if (soundsEnabled) {
                                         player.playSound(

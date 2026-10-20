@@ -26,8 +26,8 @@ public final class RouletteManager {
             EconomyProvider economy,
             RouletteRandom random,
             List<Long> allowedStakes,
-            int outsideMultiplier,
-            int exactMultiplier) {
+            java.math.BigDecimal outsideMultiplier,
+            java.math.BigDecimal exactMultiplier) {
         this(
                 economy,
                 random,
@@ -41,8 +41,8 @@ public final class RouletteManager {
             EconomyProvider economy,
             RouletteRandom random,
             List<Long> allowedStakes,
-            int outsideMultiplier,
-            int exactMultiplier,
+            java.math.BigDecimal outsideMultiplier,
+            java.math.BigDecimal exactMultiplier,
             RouletteHistoryRepository history) {
         this(
                 economy,
@@ -58,8 +58,8 @@ public final class RouletteManager {
             EconomyProvider economy,
             RouletteRandom random,
             List<Long> allowedStakes,
-            int outsideMultiplier,
-            int exactMultiplier,
+            java.math.BigDecimal outsideMultiplier,
+            java.math.BigDecimal exactMultiplier,
             RouletteHistoryRepository history,
             RoundJournal journal) {
         this.economy = Objects.requireNonNull(economy, "economy");
@@ -199,7 +199,10 @@ public final class RouletteManager {
         }
     }
 
-    public void updateConfiguration(List<Long> stakes, int outsideMultiplier, int exactMultiplier) {
+    public void updateConfiguration(
+            List<Long> stakes,
+            java.math.BigDecimal outsideMultiplier,
+            java.math.BigDecimal exactMultiplier) {
         if (stakes.isEmpty() || stakes.stream().anyMatch(stake -> stake == null || stake <= 0)) {
             throw new IllegalArgumentException("Roulette stakes must contain positive values");
         }
@@ -211,11 +214,11 @@ public final class RouletteManager {
         return allowedStakes;
     }
 
-    public int outsideMultiplier() {
+    public java.math.BigDecimal outsideMultiplier() {
         return engine.outsideMultiplier();
     }
 
-    public int exactMultiplier() {
+    public java.math.BigDecimal exactMultiplier() {
         return engine.exactMultiplier();
     }
 
@@ -224,7 +227,7 @@ public final class RouletteManager {
             return random.probability(Objects.requireNonNull(number));
         RouletteBet preview = new RouletteBet(new UUID(0, 0), type, 1, null);
         double chance = 0;
-        for (int n = 0; n <= 12; n++) {
+        for (int n = 0; n <= 10; n++) {
             if (engine.wins(preview, new RouletteResult(n, RouletteEngine.colorOf(n))))
                 chance += random.probability(n);
         }

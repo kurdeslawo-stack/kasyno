@@ -2,34 +2,31 @@ name: CasinoCore
 version: '${project.version}'
 main: pl.kurdeslawo.casinocore.CasinoCorePlugin
 api-version: '26.3'
-description: Casino plugin with Roulette, Blackjack and a pluggable economy.
+description: Ruletka i Blackjack dla Lainy — CMD właściciela, bez własnej paczki i mebli.
 author: CasinoCore
-website: https://github.com/kurdeslawo-stack/kasyno
 softdepend: [Vault]
-
 commands:
-  casino:
-    description: CasinoCore player and administration commands.
-    usage: /casino [reload|balance|coins|roulette|blackjack|transactions|chances]
-    permission: casinocore.command
-
+  ruletka:
+    description: Otwiera ruletkę wskazanemu graczowi (komenda mebla/konsoli).
+    usage: /ruletka <nick>
+    permission: casinocore.roulette.open
+  blackjack:
+    description: Otwiera Blackjacka wskazanemu graczowi.
+    usage: /blackjack <nick>
+    permission: casinocore.blackjack.open
+  casinocore:
+    description: Konfiguracja i diagnostyka transakcji CasinoCore.
+    usage: /casinocore [reload|transactions|coins]
+    permission: casinocore.admin
 permissions:
-  casinocore.command:
-    description: Allows access to the base /casino command.
-    default: true
   casinocore.admin:
-    description: Allows CasinoCore configuration and test economy administration.
     default: op
     children:
       casinocore.roulette.open: true
-      casinocore.roulette.manage: true
       casinocore.blackjack.open: true
   casinocore.roulette.open:
-    description: Allows opening the Roulette GUI with /casino roulette open.
-    default: false
-  casinocore.roulette.manage:
-    description: Allows creating and removing Roulette interaction hitboxes.
-    default: false
+    description: Pozwala wykonawcy otworzyć ruletkę innemu graczowi.
+    default: op
   casinocore.blackjack.open:
-    description: Allows opening the Blackjack GUI.
-    default: false
+    description: Pozwala wykonawcy otworzyć Blackjacka innemu graczowi.
+    default: op

@@ -10,7 +10,6 @@ import java.util.Objects;
 import java.util.UUID;
 
 public final class VaultEconomyProvider implements EconomyProvider {
-    private static final long MAX_EXACT_DOUBLE_INTEGER = 9_007_199_254_740_992L;
     private final Economy economy;
 
     public VaultEconomyProvider(Economy economy) {
@@ -33,10 +32,7 @@ public final class VaultEconomyProvider implements EconomyProvider {
                             + playerId
                             + ".");
         }
-        if (balance <= 0) {
-            return 0L;
-        }
-        return balance >= Long.MAX_VALUE ? Long.MAX_VALUE : (long) Math.floor(balance);
+        return Money.fromVault(balance);
     }
 
     @Override
@@ -71,6 +67,10 @@ public final class VaultEconomyProvider implements EconomyProvider {
         requireSuccess(response, "deposit", playerId, amount);
     }
 
+    public int fractionalDigits() {
+        return economy.fractionalDigits();
+    }
+
     public String providerName() {
         try {
             String name = economy.getName();
@@ -89,8 +89,8 @@ public final class VaultEconomyProvider implements EconomyProvider {
                             + "' returned no response for "
                             + operation
                             + " of "
-                            + amount
-                            + " coins for "
+                            + Money.format(amount)
+                            + " currency units for "
                             + playerId
                             + ".");
         }
@@ -105,11 +105,22 @@ public final class VaultEconomyProvider implements EconomyProvider {
                             + "' rejected "
                             + operation
                             + " of "
-                            + amount
-                            + " coins for "
+                            + Money.format(amount)
+                            + " currency units for "
                             + playerId
                             + ": "
                             + reason);
+        }
+        // A successful response for a different amount is ambiguous; never replay it blindly.
+        if (!Double.isFinite(response.amount)
+                || Math.abs(response.amount - Money.toVault(amount)) > 0.000001) {
+            throw new EconomyTransactionException(
+                    "Vault provider '"
+                            + providerName()
+                            + "' reported a different amount during "
+                            + operation
+                            + " for "
+                            + playerId);
         }
     }
 
@@ -132,9 +143,6 @@ public final class VaultEconomyProvider implements EconomyProvider {
     }
 
     private static double vaultAmount(long amount) {
-        if (amount < 0 || amount > MAX_EXACT_DOUBLE_INTEGER) {
-            throw new IllegalArgumentException("Vault amount must be between 0 and 2^53");
-        }
-        return amount;
+        return Money.toVault(amount);
     }
 }
