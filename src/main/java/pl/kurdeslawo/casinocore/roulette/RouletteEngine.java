@@ -16,7 +16,7 @@ public final class RouletteEngine {
     public boolean wins(RouletteBet bet, RouletteResult result) {
         int n = result.winningNumber();
         if (bet.type() == RouletteBetType.EXACT_NUMBER) return bet.selectedNumber() == n;
-        if (n == 0) return false;
+        if (RouletteResult.isZero(n)) return false;
         return switch (bet.type()) {
             case RED -> result.color() == RouletteColor.RED;
             case BLACK -> result.color() == RouletteColor.BLACK;
@@ -46,7 +46,10 @@ public final class RouletteEngine {
     }
 
     public static RouletteColor colorOf(int n) {
-        if (n < 0 || n > 10) throw new IllegalArgumentException("Numer: 0–10");
-        return n == 0 ? RouletteColor.GREEN : n % 2 == 1 ? RouletteColor.RED : RouletteColor.BLACK;
+        if (n < 0 || n >= RouletteResult.POCKET_COUNT)
+            throw new IllegalArgumentException("Pole: 0, 00 lub 1–10");
+        return RouletteResult.isZero(n)
+                ? RouletteColor.GREEN
+                : n % 2 == 1 ? RouletteColor.RED : RouletteColor.BLACK;
     }
 }

@@ -59,7 +59,9 @@ public final class BlackjackGui {
         if (player.getOpenInventory().getTopInventory().getHolder()
                         instanceof BlackjackGuiHolder current
                 && current.playerId().equals(player.getUniqueId())) {
-            render(player, current.getInventory());
+            // Repeated furniture commands must not rewind a running deal/reveal.
+            if (manager.openSession(player.getUniqueId()).phase() != BlackjackPhase.DEALING
+                    && !current.revealingDealer()) render(player, current.getInventory());
             return;
         }
         BlackjackGuiHolder holder = new BlackjackGuiHolder(player.getUniqueId());
@@ -102,6 +104,14 @@ public final class BlackjackGui {
             int dealerVisible,
             boolean hideHole) {
         BlackjackSession session = manager.openSession(player.getUniqueId());
+        Inventory destination = inventory;
+        boolean revealing =
+                destination.getHolder() instanceof BlackjackGuiHolder holder
+                        && holder.revealingDealer();
+        if (destination.getHolder() instanceof BlackjackGuiHolder holder)
+            holder.showStakes(manager.stakes());
+        // Compose a frame off-screen; only changed slots reach the open inventory.
+        inventory = Bukkit.createInventory(null, SIZE);
         ItemStack filler =
                 applyIcon(
                         item(Material.GREEN_STAINED_GLASS_PANE, Component.text(" "), false),
@@ -128,9 +138,6 @@ public final class BlackjackGui {
                     hideHole && index == 1 ? hidden() : card(dealerCards.get(index)));
         }
 
-        boolean revealing =
-                inventory.getHolder() instanceof BlackjackGuiHolder holder
-                        && holder.revealingDealer();
         inventory.setItem(
                 STATUS,
                 revealing
@@ -144,12 +151,52 @@ public final class BlackjackGui {
                                 Component.text("Poczekaj na wynik", NamedTextColor.GRAY))
                         : status(session));
         renderStakes(inventory, session);
-        inventory.setItem(BALANCE, balance(player));
+        inventory.setItem(BALANCE, revealing ? destination.getItem(BALANCE) : balance(player));
         inventory.setItem(
                 CLOSE,
                 item(Material.BARRIER, Component.text("Zamknij", NamedTextColor.RED), false));
         renderActions(inventory, session);
         if (!revealing) renderHistory(inventory, player);
+        else inventory.setItem(HISTORY, destination.getItem(HISTORY));
+        inventory.setItem(18, handSummary("Krupier", dealerCards, dealerVisible, hideHole));
+        inventory.setItem(26, handSummary("Twoje karty", playerCards, playerVisible, false));
+        for (int slot = 0; slot < SIZE; slot++) {
+            ItemStack next = inventory.getItem(slot);
+            if (!java.util.Objects.equals(destination.getItem(slot), next))
+                destination.setItem(slot, next);
+        }
+    }
+
+    private ItemStack handSummary(
+            String label, List<BlackjackCard> cards, int visible, boolean hideHole) {
+        var hand = new pl.kurdeslawo.casinocore.blackjack.BlackjackHand();
+        List<Component> lore = new ArrayList<>();
+        boolean concealed = false;
+        for (int i = 0; i < Math.min(visible, cards.size()); i++) {
+            if (hideHole && i == 1) {
+                concealed = true;
+                continue;
+            }
+            hand.add(cards.get(i));
+            lore.add(
+                    Component.text(
+                            rank(cards.get(i).rank()) + " " + suit(cards.get(i).suit()),
+                            NamedTextColor.WHITE));
+        }
+        String total = hand.cards().isEmpty() ? "—" : Integer.toString(hand.value());
+        if (concealed) {
+            total += " + ?";
+            lore.add(Component.text("Druga karta jest zakryta", NamedTextColor.GRAY));
+        }
+        ItemStack stack =
+                item(
+                        Material.PAPER,
+                        Component.text(
+                                label + ": " + total,
+                                hand.isBust() ? NamedTextColor.RED : NamedTextColor.YELLOW),
+                        false,
+                        lore.toArray(Component[]::new));
+        return applyIcon(stack, label.equals("Krupier") ? "dealer_summary" : "player_summary");
     }
 
     private void renderStakes(Inventory inventory, BlackjackSession session) {
@@ -251,6 +298,21 @@ public final class BlackjackGui {
                         : session.outcome() == BlackjackOutcome.LOSS
                                 ? Material.REDSTONE
                                 : Material.GOLD_INGOT;
+        long net = session.payout() - session.wager();
+        String reason =
+                session.playerHand().isBust()
+                        ? "Przekroczono 21 punktów."
+                        : session.outcome() == BlackjackOutcome.BLACKJACK
+                                ? "Blackjack: as i karta za 10."
+                                : session.outcome() == BlackjackOutcome.PUSH
+                                        ? "Remis — zwrot stawki."
+                                        : session.dealerHand().isBlackjack()
+                                                ? "Krupier ma Blackjacka."
+                                                : session.dealerHand().isBust()
+                                                        ? "Krupier przekroczył 21 punktów."
+                                                        : win
+                                                                ? "Masz więcej punktów niż krupier."
+                                                                : "Krupier ma więcej punktów.";
         return item(
                 material,
                 Component.text(name, color, TextDecoration.BOLD),
@@ -264,7 +326,14 @@ public final class BlackjackGui {
                 Component.text("Wypłata: ", NamedTextColor.GRAY)
                         .append(
                                 Component.text(
-                                        Money.format(session.payout()), NamedTextColor.YELLOW)));
+                                        Money.format(session.payout()) + "₭",
+                                        NamedTextColor.YELLOW)),
+                Component.text(
+                        "Bilans: " + (net > 0 ? "+" : "") + Money.format(net) + "₭",
+                        net > 0
+                                ? NamedTextColor.GREEN
+                                : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY),
+                Component.text(reason, NamedTextColor.GRAY));
     }
 
     private void renderActions(Inventory inventory, BlackjackSession session) {

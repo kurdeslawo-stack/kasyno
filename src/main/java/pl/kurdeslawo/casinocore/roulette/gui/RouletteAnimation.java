@@ -61,7 +61,8 @@ public final class RouletteAnimation {
         cancel(player.getUniqueId());
         RouletteSession session = manager.session(player.getUniqueId()).orElseThrow();
         int finalNumber = session.result().winningNumber();
-        int finalStep = 22 + finalNumber;
+        int finalStep =
+                2 * pl.kurdeslawo.casinocore.roulette.RouletteResult.POCKET_COUNT + finalNumber;
         scheduleStep(player, inventory, 0, finalStep);
     }
 
@@ -150,7 +151,10 @@ public final class RouletteAnimation {
                                         tasks.remove(playerId);
                                         return;
                                     }
-                                    int highlighted = step % 11;
+                                    int highlighted =
+                                            step
+                                                    % pl.kurdeslawo.casinocore.roulette
+                                                            .RouletteResult.POCKET_COUNT;
                                     gui.highlightNumber(inventory, highlighted);
                                     if (soundsEnabled) {
                                         player.playSound(

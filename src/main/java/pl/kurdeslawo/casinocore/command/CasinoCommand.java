@@ -56,7 +56,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(
                 "§5CasinoCore "
                         + plugin.getPluginMeta().getVersion()
-                        + " — Laina | ruletka 0–10, równe szanse");
+                        + " — Laina | ruletka 0, 00, 1–10, równe szanse");
         sender.sendMessage(
                 "§e/casinocore reload | transactions list | coins <set|add> <nick> <kwota>");
         return true;
@@ -144,7 +144,9 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
                         "Reconciliation saved. No unknown transaction was automatically replayed.");
             } else
                 sender.sendMessage(
-                        "Usage: /casinocore transactions list [page] | retry <round-id> | resolve <round-id> <stake|double|payout> <applied|not-applied> <evidence from economy logs>");
+                        "Usage: /casinocore transactions list [page] | retry <round-id> | resolve"
+                            + " <round-id> <stake|double|payout> <applied|not-applied> <evidence"
+                            + " from economy logs>");
         } catch (RuntimeException exception) {
             sender.sendMessage("Transaction remains protected: " + exception.getMessage());
             plugin.getLogger().severe("RECONCILIATION: " + exception.getMessage());

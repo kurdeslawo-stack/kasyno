@@ -12,8 +12,8 @@ roulette:
   # Kwoty w walucie serwera, maksymalnie dwie cyfry po przecinku.
   # Kliknięcie kwoty OD RAZU rozpoczyna rundę dla zaznaczonego zakładu.
   stakes: [1, 5, 25]
-  # Zakres na stałe 0–10. Każdy numer ma zawsze szansę 1/11.
-  # Czerwone: 1,3,5,7,9. Czarne: 2,4,6,8,10. Zero nie wygrywa zakładów zewnętrznych.
+  # Pola: 0, 00 i 1–10. Każde z 12 pól ma szansę 1/12.
+  # Czerwone: 1,3,5,7,9. Czarne: 2,4,6,8,10. Oba zera przegrywają zakłady zewnętrzne.
   payouts:
     # Całkowity zwrot razem ze stawką. 1 ₭ x 1.8 = 1.80 ₭, bez obcinania ułamka.
     outside: 1.8
@@ -119,6 +119,13 @@ gui:
         normal: {material: WHEAT, cmd: 0}
         selected: {material: HAY_BLOCK, cmd: 0}
     numbers:
+      # 00 jest osobnym zakładem, z czterema niezależnymi ikonami.
+      # Przy CMD > 0 ilość itemów zawsze wynosi 1 (bez licznika na ikonie).
+      '00':
+        normal: {material: LIME_WOOL, cmd: 0}
+        selected: {material: LIME_CONCRETE, cmd: 0}
+        ball: {material: GLOWSTONE, cmd: 0}
+        selected-ball: {material: SEA_LANTERN, cmd: 0}
       '0':
         normal: {material: LIME_WOOL, cmd: 0}
         selected: {material: LIME_CONCRETE, cmd: 0}
@@ -192,8 +199,9 @@ blackjack:
     blackjack-profit-numerator: 3
     blackjack-profit-denominator: 2
   animation:
-    deal-delay-ticks: 5
-    dealer-delay-ticks: 6
-    result-duration-ticks: 50
+    # 20 ticków = 1 sekunda. Karty są odkrywane kolejno, wynik zostaje na 4 sekundy.
+    deal-delay-ticks: 8
+    dealer-delay-ticks: 12
+    result-duration-ticks: 80
   sounds:
     enabled: true

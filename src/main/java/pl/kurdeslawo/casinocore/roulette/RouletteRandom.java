@@ -6,8 +6,8 @@ import java.util.random.RandomGenerator;
 /** Fixed, uniform distribution. No weights or administrator chance overrides. */
 public final class RouletteRandom {
     public static final int MIN_NUMBER = 0;
-    public static final int MAX_NUMBER = 10;
-    public static final int NUMBER_COUNT = 11;
+    public static final int MAX_NUMBER = RouletteResult.DOUBLE_ZERO;
+    public static final int NUMBER_COUNT = RouletteResult.POCKET_COUNT;
     private final RandomGenerator random;
 
     public RouletteRandom() {
@@ -24,7 +24,8 @@ public final class RouletteRandom {
     }
 
     public double probability(int number) {
-        if (number < 0 || number > MAX_NUMBER) throw new IllegalArgumentException("Numer: 0–10");
+        if (number < 0 || number > MAX_NUMBER)
+            throw new IllegalArgumentException("Pole: 0, 00 lub 1–10");
         return 1.0 / NUMBER_COUNT;
     }
 }

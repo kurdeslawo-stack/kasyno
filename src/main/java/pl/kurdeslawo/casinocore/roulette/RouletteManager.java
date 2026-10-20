@@ -227,7 +227,7 @@ public final class RouletteManager {
             return random.probability(Objects.requireNonNull(number));
         RouletteBet preview = new RouletteBet(new UUID(0, 0), type, 1, null);
         double chance = 0;
-        for (int n = 0; n <= 10; n++) {
+        for (int n = 0; n < RouletteResult.POCKET_COUNT; n++) {
             if (engine.wins(preview, new RouletteResult(n, RouletteEngine.colorOf(n))))
                 chance += random.probability(n);
         }

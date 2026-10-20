@@ -19,23 +19,31 @@ public final class ConfiguredIcon {
         return stack;
     }
 
+    private static Object value(
+            FileConfiguration config, String path, String normal, Object fallback) {
+        if (config.contains(path, true)) return config.get(path);
+        if (config.contains(normal, true)) return config.get(normal);
+        var defaults = config.getDefaults();
+        return defaults == null ? fallback : defaults.get(path, defaults.get(normal, fallback));
+    }
+
     public static ItemStack create(
             FileConfiguration config, String key, String state, Material fallback) {
         String base = "gui.icons." + key;
         String path = base + "." + state;
         String material =
-                config.contains(path + ".material", true)
-                        ? config.getString(path + ".material")
-                        : config.getString(base + ".normal.material", fallback.name());
+                String.valueOf(
+                        value(
+                                config,
+                                path + ".material",
+                                base + ".normal.material",
+                                fallback.name()));
         ItemStack stack =
                 new ItemStack(
                         java.util.Objects.requireNonNull(
                                 Material.matchMaterial(material),
                                 "Nieprawidłowy materiał: " + material));
-        int cmd =
-                config.contains(path + ".cmd", true)
-                        ? config.getInt(path + ".cmd")
-                        : config.getInt(base + ".normal.cmd", 0);
+        int cmd = ((Number) value(config, path + ".cmd", base + ".normal.cmd", 0)).intValue();
         var meta = stack.getItemMeta();
         if (cmd != 0) {
             var data = meta.getCustomModelDataComponent();

@@ -27,9 +27,8 @@ public final class RouletteGui {
     public static final int STATUS_SLOT = 26;
     public static final int HISTORY_SLOT = 17;
     public static final int BALANCE_SLOT = 8;
-    // Clockwise ring matching the furniture GUI. Both green slots select the same zero.
-    private static final int[] NUMBER_SLOTS = {11, 12, 13, 14, 15, 24, 33, 32, 31, 30, 29};
-    private static final int ZERO_MIRROR_SLOT = 20;
+    // Clockwise ring: 0, 1..10, then the distinct 00 pocket (ID 11).
+    private static final int[] NUMBER_SLOTS = {11, 12, 13, 14, 15, 24, 33, 32, 31, 30, 29, 20};
     private static final int[] STAKE_SLOTS = {9, 18, 27};
     private static final Map<Integer, RouletteBetType> OUTSIDE_BETS =
             Map.of(
@@ -213,7 +212,7 @@ public final class RouletteGui {
     }
 
     private void renderNumbers(Inventory inventory, Integer highlighted, RouletteSession session) {
-        for (int n = 0; n <= 10; n++) {
+        for (int n = 0; n < RouletteResult.POCKET_COUNT; n++) {
             boolean chosen = selected(session, RouletteBetType.EXACT_NUMBER, n);
             boolean ball = highlighted != null && highlighted == n;
             String state =
@@ -221,22 +220,23 @@ public final class RouletteGui {
             Material fallback =
                     ball
                             ? (chosen ? Material.SEA_LANTERN : Material.GLOWSTONE)
-                            : n == 0
+                            : RouletteResult.isZero(n)
                                     ? Material.LIME_WOOL
                                     : n % 2 == 1 ? Material.RED_WOOL : Material.BLACK_WOOL;
             var lore = betLore(session, RouletteBetType.EXACT_NUMBER, n, chosen);
             if (ball) lore.addFirst(text("ball"));
             ItemStack stack =
                     icon(
-                            "numbers." + n,
+                            "numbers." + RouletteResult.label(n),
                             state,
                             fallback,
-                            text("number", "number", Integer.toString(n)),
+                            text("number", "number", RouletteResult.label(n)),
                             lore);
-            if (n > 1 && stack.getItemMeta().getCustomModelDataComponent().getFloats().isEmpty())
+            if (n > 1
+                    && n <= 10
+                    && stack.getItemMeta().getCustomModelDataComponent().getFloats().isEmpty())
                 stack.setAmount(n);
             inventory.setItem(NUMBER_SLOTS[n], stack);
-            if (n == 0) inventory.setItem(ZERO_MIRROR_SLOT, stack.clone());
         }
     }
 
@@ -277,7 +277,11 @@ public final class RouletteGui {
     private String betLabel(RouletteBet bet) {
         if (bet.type() == RouletteBetType.EXACT_NUMBER)
             return LegacyComponentSerializer.legacySection()
-                    .serialize(text("exact-bet", "number", Integer.toString(bet.selectedNumber())));
+                    .serialize(
+                            text(
+                                    "exact-bet",
+                                    "number",
+                                    RouletteResult.label(bet.selectedNumber())));
         return LegacyComponentSerializer.legacySection()
                 .serialize(text("bets." + bet.type().name().toLowerCase(java.util.Locale.ROOT)));
     }
@@ -318,7 +322,7 @@ public final class RouletteGui {
         return (r.color() == RouletteColor.GREEN
                         ? "&a"
                         : r.color() == RouletteColor.RED ? "&c" : "&8")
-                + r.winningNumber();
+                + RouletteResult.label(r.winningNumber());
     }
 
     public static NamedTextColor resultColor(RouletteColor c) {
@@ -330,7 +334,6 @@ public final class RouletteGui {
     }
 
     public static Integer numberAt(int slot) {
-        if (slot == ZERO_MIRROR_SLOT) return 0;
         for (int n = 0; n < NUMBER_SLOTS.length; n++) if (NUMBER_SLOTS[n] == slot) return n;
         return null;
     }

@@ -93,7 +93,7 @@ public final class CasinoCorePlugin extends JavaPlugin {
                     .info(
                             "CasinoCore v"
                                     + getPluginMeta().getVersion()
-                                    + " | Laina | roulette=0-10 uniform | economy="
+                                    + " | Laina | roulette=0,00,1-10 uniform | economy="
                                     + (economyProvider instanceof VaultEconomyProvider v
                                             ? "vault/" + v.providerName()
                                             : "local DEVELOPMENT")
@@ -185,7 +185,8 @@ public final class CasinoCorePlugin extends JavaPlugin {
             reloadConfig();
             getLogger()
                     .warning(
-                            "Zapisano kopię starego configu. Włączono specyfikację Laina 0-10, x1.8/x8, CMD; stara ekonomia zachowana.");
+                            "Zapisano kopię starego configu. Włączono specyfikację Laina 0,00,1-10,"
+                                    + " x1.8/x8, CMD; stara ekonomia zachowana.");
         } catch (java.io.IOException e) {
             throw new IllegalStateException("Migracja configu nie powiodła się", e);
         }
@@ -196,7 +197,8 @@ public final class CasinoCorePlugin extends JavaPlugin {
         try (var old = new RoundJournal(directory)) {
             if (old.entries(null).stream().anyMatch(e -> !e.complete()))
                 throw new IllegalStateException(
-                        "Stary round-journal zawiera nierozliczone rundy. Rozlicz je na 1.0.0 PRZED migracją; nie usuwaj dziennika.");
+                        "Stary round-journal zawiera nierozliczone rundy. Rozlicz je na 1.0.0 PRZED"
+                                + " migracją; nie usuwaj dziennika.");
         }
     }
 
@@ -260,7 +262,8 @@ public final class CasinoCorePlugin extends JavaPlugin {
                     for (long value : amounts)
                         if (BigDecimal.valueOf(value, 2).stripTrailingZeros().scale() > digits)
                             throw new IllegalStateException(
-                                    "Dokładność ekonomii Vault jest za mała dla skonfigurowanych stawek i wypłat");
+                                    "Dokładność ekonomii Vault jest za mała dla skonfigurowanych"
+                                            + " stawek i wypłat");
                 }
         }
     }

@@ -9,6 +9,15 @@ public final class BlackjackGuiHolder implements InventoryHolder {
     private final UUID playerId;
     private Inventory inventory;
     private boolean revealingDealer;
+    private java.util.List<Long> renderedStakes = java.util.List.of();
+
+    void showStakes(java.util.List<Long> stakes) {
+        renderedStakes = java.util.List.copyOf(stakes);
+    }
+
+    java.util.List<Long> renderedStakes() {
+        return renderedStakes;
+    }
 
     public BlackjackGuiHolder(UUID playerId) {
         this.playerId = playerId;

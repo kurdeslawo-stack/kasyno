@@ -84,6 +84,15 @@ public final class BlackjackGuiListener implements Listener {
 
     private void handleBettingClick(Player player, BlackjackGuiHolder holder, int slot) {
         int stakeIndex = BlackjackGui.stakeAt(slot);
+        if ((stakeIndex >= 0 || slot == BlackjackGui.STATUS)
+                && !holder.renderedStakes().equals(manager.stakes())) {
+            gui.render(player, holder.getInventory());
+            player.sendActionBar(
+                    Component.text(
+                            "Stawki uległy zmianie. Sprawdź kwoty i kliknij ponownie.",
+                            NamedTextColor.YELLOW));
+            return;
+        }
         if (stakeIndex >= 0 && stakeIndex < manager.stakes().size()) {
             manager.selectStake(player.getUniqueId(), manager.stakes().get(stakeIndex));
             gui.render(player, holder.getInventory());
@@ -98,7 +107,7 @@ public final class BlackjackGuiListener implements Listener {
                                     .contains(
                                             manager.openSession(player.getUniqueId())
                                                     .selectedStake())
-                            ? "Nie masz wystarczającej liczby coinów."
+                            ? "Nie masz wystarczającego salda."
                             : "Wybierz dostępną stawkę.";
             player.sendActionBar(Component.text(message, NamedTextColor.RED));
             return;
@@ -112,7 +121,8 @@ public final class BlackjackGuiListener implements Listener {
         UUID playerId = player.getUniqueId();
         if (slot == BlackjackGui.HIT) {
             manager.hit(playerId);
-            player.playSound(player.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.1f);
+            if (plugin.getConfig().getBoolean("blackjack.sounds.enabled", true))
+                player.playSound(player.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.1f);
             if (session.phase() == BlackjackPhase.RESULT) {
                 if (session.playerHand().isBust())
                     animation.showResult(player, holder.getInventory());

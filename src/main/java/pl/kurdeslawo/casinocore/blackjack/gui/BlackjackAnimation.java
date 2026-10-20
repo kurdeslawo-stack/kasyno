@@ -30,10 +30,10 @@ public final class BlackjackAnimation {
 
     public void deal(Player player, Inventory inventory) {
         cancel(player.getUniqueId());
-        dealStep(player, inventory, 0);
+        dealStep(player, inventory, manager.session(player.getUniqueId()).orElseThrow(), 0);
     }
 
-    private void dealStep(Player player, Inventory inventory, int step) {
+    private void dealStep(Player player, Inventory inventory, BlackjackSession expected, int step) {
         long delay = plugin.getConfig().getLong("blackjack.animation.deal-delay-ticks", 5);
         BukkitTask task =
                 plugin.getServer()
@@ -43,7 +43,7 @@ public final class BlackjackAnimation {
                                 () -> {
                                     BlackjackSession session =
                                             manager.session(player.getUniqueId()).orElse(null);
-                                    if (session == null
+                                    if (session != expected
                                             || session.phase() != BlackjackPhase.DEALING
                                             || !viewing(player, inventory)) {
                                         tasks.remove(player.getUniqueId());
@@ -65,7 +65,7 @@ public final class BlackjackAnimation {
                                             player, inventory, playerVisible, dealerVisible, true);
                                     sound(player, () -> Sound.ITEM_BOOK_PAGE_TURN, 0.45f, 1.15f);
                                     if (step < 3) {
-                                        dealStep(player, inventory, step + 1);
+                                        dealStep(player, inventory, expected, step + 1);
                                         return;
                                     }
 
@@ -148,6 +148,9 @@ public final class BlackjackAnimation {
     }
 
     public void showResult(Player player, Inventory inventory) {
+        cancel(player.getUniqueId());
+        if (inventory.getHolder() instanceof BlackjackGuiHolder holder)
+            holder.setRevealingDealer(false);
         BlackjackSession session = manager.session(player.getUniqueId()).orElse(null);
         if (session == null || session.phase() != BlackjackPhase.RESULT) return;
         gui.render(player, inventory);
@@ -156,7 +159,7 @@ public final class BlackjackAnimation {
     }
 
     private void scheduleReset(Player player, Inventory inventory, BlackjackSession session) {
-        long delay = plugin.getConfig().getLong("blackjack.animation.result-duration-ticks", 50);
+        long delay = plugin.getConfig().getLong("blackjack.animation.result-duration-ticks", 80);
         BukkitTask task =
                 plugin.getServer()
                         .getScheduler()
